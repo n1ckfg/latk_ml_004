@@ -14,7 +14,8 @@ def main():
     inputLinesPath = argv[0]
     inputRgbPath = argv[1]
     inputDepthPath = argv[2]
-    threshold = int(argv[3])
+    lineThreshold = int(argv[3])
+    lineQuality = int(argv[4])
 
     print("")
     print("Reading lines from : " + inputLinesPath)
@@ -48,7 +49,7 @@ def main():
         im0 = cv2.bitwise_not(im0) # invert
         imWidth = len(im0[0])
         imHeight = len(im0)
-        im = (im0[:,:,0] > threshold).astype(np.uint8)
+        im = (im0[:,:,0] > lineThreshold).astype(np.uint8)
         im = thinning(im)
 
         imRgb = cv2.imread(os.path.join(inputRgbPath, rgbFileName))
@@ -57,7 +58,8 @@ def main():
         imDepth = cv2.resize(imDepth, [imWidth, imHeight])
 
         rects = []
-        polys = traceSkeleton(im,0,0,im.shape[1],im.shape[0],10,999,rects)
+        # im, x, y, w, h, csize, maxIter, rects
+        polys = traceSkeleton(im, 0, 0, im.shape[1], im.shape[0], lineQuality, 999, rects)
 
         frame = latk.LatkFrame(frame_number=i)
 

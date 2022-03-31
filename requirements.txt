@@ -6,4 +6,5 @@ tqdm
 regex
 numpy
 opencv-python
+scikit-image
 latk
