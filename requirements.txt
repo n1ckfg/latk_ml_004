@@ -4,4 +4,6 @@ ninja
 ftfy
 tqdm
 regex
-
+numpy
+opencv-python
+latk
