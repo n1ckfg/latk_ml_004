@@ -84,7 +84,8 @@ def main():
                 lPoint.vertex_color = rgbPixel2
                 lPoints.append(lPoint)
 
-            frame.strokes.append(latk.LatkStroke(lPoints))
+            if (len(lPoints) > 2):
+                frame.strokes.append(latk.LatkStroke(lPoints))
 
         la.layers[0].frames.append(frame)
 
