@@ -1,6 +1,6 @@
 import sys, os, glob
-sys.path.append("skeleton-tracing/py")
-#sys.path.append("skeleton-tracing/swig") # C
+sys.path.append("skeleton-tracing/py") # pure python
+#sys.path.append("skeleton-tracing/swig") # C library
 
 from trace_skeleton import *
 import cv2
@@ -84,7 +84,7 @@ def main():
                 lPoint.vertex_color = rgbPixel2
                 lPoints.append(lPoint)
 
-            if (len(lPoints) > 2):
+            if (len(lPoints) > 1):
                 frame.strokes.append(latk.LatkStroke(lPoints))
 
         la.layers[0].frames.append(frame)
