@@ -78,7 +78,7 @@ def main():
                 rgbPixel = imRgb[point[1]][point[0]]
                 rgbPixel2 = (rgbPixel[2] / 255, rgbPixel[1] / 255, rgbPixel[0] / 255, 1)
 
-                co = kc.uvd_to_xyz(u=point[0], v=point[1], d=abs(255 - depthPixel[0]))
+                co = kc.uvd_to_xyz(u=point[0], v=point[1], d=abs(255 - depthPixel[0]), scale=0.1)
                 co2 = (co[0], co[2], co[1])
                 lPoint = latk.LatkPoint(co2)
                 lPoint.vertex_color = rgbPixel2

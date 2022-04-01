@@ -3,14 +3,13 @@
 import numpy as np
 
 # Kinect 2
-pixelToMeter = 1 # for scale
 cx = 254.878
 cy = 205.395
 focalx = 365.456
 focaly = 365.456
 
-def uvd_to_xyz(u, v, d):
-    d *= pixelToMeter
+def uvd_to_xyz(u, v, d, scale=1):
+    d *= scale
     x_over_z = (cx - u) / focalx
     y_over_z = (cy - v) / focaly
 
