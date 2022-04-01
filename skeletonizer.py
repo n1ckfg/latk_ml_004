@@ -6,6 +6,7 @@ from trace_skeleton import *
 import cv2
 import random
 import latk
+import kinect_converter as kc
 
 def main():
     argv = sys.argv
@@ -27,9 +28,11 @@ def main():
     rgbFilesList = os.listdir(inputRgbPath)
     depthFilesList = os.listdir(inputDepthPath)
 
-    if not (len(lineFilesList) == len(rgbFilesList) == len(depthFilesList)):
+    '''
+    if (len(lineFilesList) != len(rgbFilesList) or (rgbFilesList) != len(depthFilesList)):
         print("*** Error: file lists are different lengths. ***")
         return
+	'''
 
     la = latk.Latk()
     la.layers.append(latk.LatkLayer())
@@ -66,17 +69,18 @@ def main():
         for stroke in polys:
             lPoints = []
             for point in stroke:
-                x = point[0] / imWidth
-                y = 1.0 - (point[1] / imHeight)
+                #x = point[0] / imWidth
+                #y = 1.0 - (point[1] / imHeight)
 
                 depthPixel = imDepth[point[1]][point[0]]
-                z = 1.0 - (depthPixel[0] / 255)
+                #z = 1.0 - (depthPixel[0] / 255)
                 
                 rgbPixel = imRgb[point[1]][point[0]]
                 rgbPixel2 = (rgbPixel[2] / 255, rgbPixel[1] / 255, rgbPixel[0] / 255, 1)
 
-                co = (x, z, y)
-                lPoint = latk.LatkPoint(co)
+                co = kc.uvd_to_xyz(u=point[0], v=point[1], d=abs(255 - depthPixel[0]))
+                co2 = (co[0], co[2], co[1])
+                lPoint = latk.LatkPoint(co2)
                 lPoint.vertex_color = rgbPixel2
                 lPoints.append(lPoint)
 
