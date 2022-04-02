@@ -1,12 +1,17 @@
+useSwig = True
 import sys, os, glob
-sys.path.append("skeleton-tracing/py") # pure python
-#sys.path.append("skeleton-tracing/swig") # C library
-
+if (useSwig == True):
+    sys.path.append("skeleton-tracing/swig") # C library
+else:
+    sys.path.append("skeleton-tracing/py") # pure python
 from trace_skeleton import *
+
 import cv2
 import random
 import latk
 import kinect_converter as kc
+import numpy as np
+from skimage.morphology import skeletonize
 
 def main():
     argv = sys.argv
@@ -16,7 +21,8 @@ def main():
     inputRgbPath = argv[1]
     inputDepthPath = argv[2]
     lineThreshold = int(argv[3])
-    lineQuality = int(argv[4])
+    csize = 10
+    maxIter = 999
 
     print("")
     print("Reading lines from : " + inputLinesPath)
@@ -53,7 +59,11 @@ def main():
         imWidth = len(im0[0])
         imHeight = len(im0)
         im = (im0[:,:,0] > lineThreshold).astype(np.uint8)
-        im = thinning(im)
+        
+        if (useSwig == True):
+            im = skeletonize(im).astype(np.uint8)
+        else:
+            im = thinning(im)
 
         imRgb = cv2.imread(os.path.join(inputRgbPath, rgbFileName))
         imRgb = cv2.resize(imRgb, [imWidth, imHeight])
@@ -62,7 +72,10 @@ def main():
 
         rects = []
         # im, x, y, w, h, csize, maxIter, rects
-        polys = traceSkeleton(im, 0, 0, im.shape[1], im.shape[0], lineQuality, 999, rects)
+        if (useSwig == True):
+            polys = from_numpy(im, csize, maxIter)
+        else:
+            polys = traceSkeleton(im, 0, 0, im.shape[1], im.shape[0], csize, maxIter, rects)
 
         frame = latk.LatkFrame(frame_number=i)
 
