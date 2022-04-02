@@ -13,8 +13,9 @@ python test.py --name %STYLE% --dataroot %RGB_PATH% --how_many %MAX_FRAMES% --si
 
 set DEPTH_PATH=input/depth
 set LINE_THRESHOLD=64
+set USE_SWIG=0
 
-python skeletonizer.py -- %RESULT_PATH% %RGB_PATH% %DEPTH_PATH% %LINE_THRESHOLD%
+python skeletonizer.py -- %RESULT_PATH% %RGB_PATH% %DEPTH_PATH% %LINE_THRESHOLD% %USE_SWIG%
 
 
 
