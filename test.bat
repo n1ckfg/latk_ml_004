@@ -5,7 +5,7 @@ rem STYLE=opensketch_style
 set RGB_PATH=input/rgb
 set RESULT_PATH=results/%STYLE%
 set MAX_FRAMES=999
-set RENDER_RES=512
+set RENDER_RES=480
 
 rmdir /s /q results\%STYLE%
 

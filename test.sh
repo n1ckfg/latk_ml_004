@@ -3,7 +3,7 @@ STYLE=anime_style
 RGB_PATH=input/rgb
 RESULT_PATH=results/$STYLE
 MAX_FRAMES=999
-RENDER_RES=512 # 512
+RENDER_RES=480 # 480
 
 rm -rf $RESULT_PATH
 
