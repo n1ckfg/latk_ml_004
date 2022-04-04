@@ -78,8 +78,8 @@ for i in range(0, len(lineFilesList)):
         kernel = np.ones((5, 5), np.uint8)
         mask = cv2.dilate(mask, kernel, iterations=1)
         imDepth = cv2.inpaint(imDepth, mask, 3, cv2.INPAINT_TELEA) # source, mask, radius, method (TELEA or NS)
-        out = Image.fromarray(imDepth)
-        out.save("test.jpg") 
+        #out = Image.fromarray(imDepth)
+        #out.save("test.jpg") 
 
     rects = []
     # im, x, y, w, h, csize, maxIter, rects
