@@ -16,9 +16,8 @@ rem python midas\run.py --input_path %RGB_PATH% --output_path %DEPTH_PATH% --mod
 
 set LINE_THRESHOLD=64
 set USE_SWIG=0
+set INPAINT=0
 
-python skeletonizer.py -- %RESULT_PATH% %RGB_PATH% %DEPTH_PATH% %LINE_THRESHOLD% %USE_SWIG%
-
-
+python skeletonizer.py -- %RESULT_PATH% %RGB_PATH% %DEPTH_PATH% %LINE_THRESHOLD% %USE_SWIG% %INPAINT%
 
 @pause

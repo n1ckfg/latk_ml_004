@@ -5,6 +5,7 @@ import latk
 import kinect_converter as kc
 import numpy as np
 from skimage.morphology import skeletonize
+from PIL import Image
 
 argv = sys.argv
 argv = argv[argv.index("--") + 1:] # get all args after "--"
@@ -14,7 +15,7 @@ inputRgbPath = argv[1]
 inputDepthPath = argv[2]
 lineThreshold = int(argv[3])
 useSwig = bool(int(argv[4]))
-print("!!!" + str(useSwig))
+doInpainting = bool(int(argv[5]))
 csize = 10
 maxIter = 999
 
@@ -67,8 +68,18 @@ for i in range(0, len(lineFilesList)):
 
     imRgb = cv2.imread(os.path.join(inputRgbPath, rgbFileName))
     imRgb = cv2.resize(imRgb, [imWidth, imHeight])
+    
     imDepth = cv2.imread(os.path.join(inputDepthPath, depthFileName))
     imDepth = cv2.resize(imDepth, [imWidth, imHeight])
+
+    if (doInpainting == True):
+        mask = cv2.cvtColor(imDepth, cv2.COLOR_BGR2GRAY)
+        ret, mask = cv2.threshold(mask, 16, 255, cv2.THRESH_BINARY_INV)
+        kernel = np.ones((5, 5), np.uint8)
+        mask = cv2.dilate(mask, kernel, iterations=1)
+        imDepth = cv2.inpaint(imDepth, mask, 3, cv2.INPAINT_TELEA) # source, mask, radius, method (TELEA or NS)
+        out = Image.fromarray(imDepth)
+        out.save("test.jpg") 
 
     rects = []
     # im, x, y, w, h, csize, maxIter, rects
