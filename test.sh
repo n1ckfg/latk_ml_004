@@ -11,7 +11,8 @@ python test.py --name $STYLE --dataroot $RGB_PATH --how_many $MAX_FRAMES --size 
 
 if [ "$1" = "midas" ]
 then
-	echo "MiDaS pass enabled..."
+	echo ""
+	echo "+ + +   MiDaS pass enabled...   + + +"
 	rm -rf $DEPTH_PATH
 	python midas/run.py --input_path $RGB_PATH --output_path $DEPTH_PATH --model_weights midas/model/model-f6b98070.pt 
 fi
@@ -22,7 +23,8 @@ INPAINT=0
 
 if [ "$1" = "inpaint" ]
 then
-	echo "Inpainting pass enabled..."
+	echo ""
+	echo "+ + +   Inpainting pass enabled...   + + +"
 	INPAINT=1
 fi
 
