@@ -19,6 +19,9 @@ doInpainting = bool(int(argv[5]))
 csize = 10
 maxIter = 999
 
+depthCameraName = "generic"
+depthCameraMode = "default"
+
 if (useSwig == True):
     sys.path.append("skeleton-tracing/swig") # C library
 else:
@@ -102,7 +105,7 @@ for i in range(0, len(lineFilesList)):
             rgbPixel = imRgb[point[1]][point[0]]
             rgbPixel2 = (rgbPixel[2] / 255, rgbPixel[1] / 255, rgbPixel[0] / 255, 1)
 
-            co = kc.uvd_to_xyz(u=point[0], v=point[1], d=abs(255 - depthPixel[0]), scale=0.1)
+            co = kc.uvd_to_xyz(u=point[0], v=point[1], d=abs(255 - depthPixel[0]), scale=0.1, name=depthCameraName, mode=depthCameraMode)
             co2 = (-co[0], co[2], co[1])
             lPoint = latk.LatkPoint(co2)
             lPoint.vertex_color = rgbPixel2

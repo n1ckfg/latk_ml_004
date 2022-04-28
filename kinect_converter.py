@@ -13,19 +13,42 @@ def getIntrinsics(name="generic", mode="default"):
 	fy = 525 # focal length y
 
 	if (name == "azure_kinect"):
-		# Azure Kinect 4K
 		# https://forum.open3d.org/t/azure-kinect-intrinsic-structure/121
 		cx = 2044.2911376953125
 		cy = 1565.8837890625
 		fx = 1959.37890625
 		fy = 1958.880126953125
 	elif (name == "kinect_2"):
-		# Kinect 2
 		# https://medium.com/yodayoda/from-depth-map-to-point-cloud-7473721d3f
 		cx = 254.878
 		cy = 205.395
 		fx = 365.456
 		fy = 365.456
+	elif (name == "realsense_D435"):
+		if (mode == "640x360"):
+			# https://answers.ros.org/question/363236/intel-realsense-d435-intrinsic-parameters/
+			cx = 320.818268
+			cy = 178.779297
+			fx = 322.282410
+			fy = 322.282410
+		elif (mode == "640x480"):
+			# https://support.intelrealsense.com/hc/en-us/community/posts/4403651641491-about-ros-camera-calibration-and-d435-on-chip-calibration-values
+			cx = 320.90576171875
+			cy = 235.999221801758
+			fx = 617.034790039063
+			fy = 617.2119140625
+		elif (mode == "848x480"):
+			# https://github.com/IntelRealSense/realsense-ros/issues/1661
+			cx = 423.014007568359
+			cy = 239.275390625
+			fx = 426.795440673828
+			fy = 426.795440673828
+		elif (mode == "1280x720"):
+			# https://github.com/IntelRealSense/realsense-ros/issues/1661
+			cx = 638.51171875
+			cy = 358.90625
+			fx = 644.219543457031
+			fy = 644.219543457031
 
 	return cx, cy, fx, fy
 
