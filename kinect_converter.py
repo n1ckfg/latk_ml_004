@@ -14,6 +14,7 @@ def getIntrinsics(name="generic", mode="default"):
 
 	if (name == "azure_kinect"):
 		# https://forum.open3d.org/t/azure-kinect-intrinsic-structure/121
+		# TODO modes
 		cx = 2044.2911376953125
 		cy = 1565.8837890625
 		fx = 1959.37890625
@@ -24,6 +25,12 @@ def getIntrinsics(name="generic", mode="default"):
 		cy = 205.395
 		fx = 365.456
 		fy = 365.456
+	elif (name == "iphone_truedepth"):
+		# http://nghiaho.com/?p=2629
+		cx = 322.18
+		cy = 240.03
+		fx = 434.89
+		fy = 434.89
 	elif (name == "realsense_D435"):
 		if (mode == "640x360"):
 			# https://answers.ros.org/question/363236/intel-realsense-d435-intrinsic-parameters/
