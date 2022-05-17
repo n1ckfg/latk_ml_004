@@ -12,25 +12,43 @@ def getIntrinsics(name="generic", mode="default"):
 	fx = 525 # focal length x
 	fy = 525 # focal length y
 
-	if (name == "azure_kinect"):
+	if (name == "kinect_2"):
+		# https://medium.com/yodayoda/from-depth-map-to-point-cloud-7473721d3f
+		cx = 254.878
+		cy = 205.395
+		fx = 365.456
+		fy = 365.456
+	elif (name == "azure_kinect"):
 		# https://forum.open3d.org/t/azure-kinect-intrinsic-structure/121
 		# TODO modes
 		cx = 2044.2911376953125
 		cy = 1565.8837890625
 		fx = 1959.37890625
 		fy = 1958.880126953125
-	elif (name == "kinect_2"):
-		# https://medium.com/yodayoda/from-depth-map-to-point-cloud-7473721d3f
-		cx = 254.878
-		cy = 205.395
-		fx = 365.456
-		fy = 365.456
 	elif (name == "iphone_truedepth"):
 		# http://nghiaho.com/?p=2629
 		cx = 322.18
 		cy = 240.03
 		fx = 434.89
 		fy = 434.89
+	elif (name == "iphone_lidar"):
+		# https://developer.apple.com/forums/thread/663995
+		cx = 130.122 # 534 / 3840 * 935.70917
+		cy = 95.149 # 384 / 2880 * 713.61804
+		fx = 222.269 # 534 / 3840 * 1598.34
+		fy = 213.112 # 384 / 2880 * 1598.34
+	elif (name == "orbbec_astra"):
+		# https://github.com/raulmur/ORB_SLAM2/issues/524
+		cx = 308.189
+		cy = 233.283
+		fx = 503.642
+		fy = 512.275
+	elif (name == "orbbec_astra_mini"):
+		# https://3dclub.orbbec3d.com/t/what-are-the-intrinsic-camera-parameters-for-the-orbbec-astra-mini/1616/2
+		cx = 320.1
+		cy = 247.6
+		fx = 535.4
+		fy = 539.2
 	elif (name == "realsense_D435"):
 		if (mode == "640x360"):
 			# https://answers.ros.org/question/363236/intel-realsense-d435-intrinsic-parameters/
