@@ -37,6 +37,9 @@ print("")
 lineFilesList = os.listdir(inputLinesPath)
 rgbFilesList = os.listdir(inputRgbPath)
 depthFilesList = os.listdir(inputDepthPath)
+lineFilesList.sort()
+rgbFilesList.sort()
+depthFilesList.sort()
 
 '''
 if (len(lineFilesList) != len(rgbFilesList) or (rgbFilesList) != len(depthFilesList)):
