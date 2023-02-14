@@ -1,12 +1,19 @@
 @echo off
 
 rem https://www.swig.org/Doc1.3/Windows.html
+
+rem provide paths to
+rem https://github.com/skeeto/w64devkit
+rem https://www.swig.org/download.html
+
 swig -python trace_skeleton.i
 
 rem WINDOWS
 rem https://github.com/LingDong-/skeleton-tracing/issues/14
-gcc -fPIC -O3 -c trace_skeleton.c trace_skeleton_wrap.c -I/$(python3-config --cflags)
-g++ -shared $(python3-config --cflags --ldflags) *.o -o _trace_skeleton.so
+rem gcc -fPIC -O3 -c trace_skeleton.c trace_skeleton_wrap.c -I/$(python3-config --cflags)
+rem g++ -shared $(python3-config --cflags --ldflags) *.o -o _trace_skeleton.so
+gcc -fPIC -O3 -c trace_skeleton.c trace_skeleton_wrap.c -I/C:\Users\nick\miniconda3\include
+g++ -shared *.o -o _trace_skeleton.pyd
 
 rem OS X
 rem PYTHON_PATH=/usr/local/Cellar/python/3.7.6_1/Frameworks/Python.framework/Versions/3.7
