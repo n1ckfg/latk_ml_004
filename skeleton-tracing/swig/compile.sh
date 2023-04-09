@@ -9,4 +9,4 @@ g++ -shared $(python3-config --cflags --ldflags) *.o -o _trace_skeleton.so
 # python3 -i -c "import trace_skeleton; trace_skeleton.trace('\0\0\0\1\1\1\0\0\0',3,3); print(trace_skeleton.len_polyline());"
 # python3 -i -c "import trace_skeleton; print(trace_skeleton.from_list([0,0,0,1,1,1,0,0,0],3,3))"
 
-python3 example.py
+#python3 example.py

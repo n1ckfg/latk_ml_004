@@ -26,6 +26,6 @@ rem quick tests
 rem python3 -i -c "import trace_skeleton; trace_skeleton.trace('\0\0\0\1\1\1\0\0\0',3,3); print(trace_skeleton.len_polyline());"
 rem python3 -i -c "import trace_skeleton; print(trace_skeleton.from_list([0,0,0,1,1,1,0,0,0],3,3))"
 
-python3 example.py
+rem python3 example.py
 
 @pause
