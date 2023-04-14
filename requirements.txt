@@ -11,3 +11,4 @@ opencv-python
 scikit-image
 latk
 Pillow
+ffmpeg-python
