@@ -128,7 +128,7 @@ def cv2_to_o3d(img):
 
 # old method with no open3d dependency
 def uvd_to_xyz(u, v, d, scale=1, name="generic", mode="default"):
-    cx, cy, fx, fy = getIntrinsics(name, mode)
+    cx, cy, fx, fy, width, height = getIntrinsics(name, mode)
 
     d *= scale
     x_over_z = (cx - u) / fx
