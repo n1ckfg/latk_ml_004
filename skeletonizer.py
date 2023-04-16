@@ -16,11 +16,12 @@ inputDepthPath = argv[2]
 lineThreshold = int(argv[3])
 useSwig = bool(int(argv[4]))
 doInpainting = bool(int(argv[5]))
+depthCameraName = argv[6] #"generic"
+depthCameraMode = argv[7] #"default"
 csize = 10
 maxIter = 999
 
-depthCameraName = "generic"
-depthCameraMode = "default"
+
 
 if (useSwig == True):
     sys.path.append("skeleton-tracing/swig") # C library

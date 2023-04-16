@@ -17,7 +17,9 @@ rem python midas\run.py --input_path %RGB_PATH% --output_path %DEPTH_PATH% --mod
 set LINE_THRESHOLD=64
 set USE_SWIG=0
 set INPAINT=0
+set DEPTH_CAMERA_NAME="generic"
+set DEPTH_CAMERA_MODE="default"
 
-python skeletonizer.py -- %RESULT_PATH% %RGB_PATH% %DEPTH_PATH% %LINE_THRESHOLD% %USE_SWIG% %INPAINT%
+python skeletonizer.py -- %RESULT_PATH% %RGB_PATH% %DEPTH_PATH% %LINE_THRESHOLD% %USE_SWIG% %INPAINT% %DEPTH_CAMERA_NAME% %DEPTH_CAMERA_MODE%
 
 @pause
