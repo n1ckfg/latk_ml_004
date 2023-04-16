@@ -25,18 +25,24 @@ def getIntrinsics(name="generic", mode="default"):
 		cy = 1565.8837890625
 		fx = 1959.37890625
 		fy = 1958.880126953125
-	elif (name == "iphone_truedepth"):
+	elif (name == "apple_truedepth"):
 		# http://nghiaho.com/?p=2629
 		cx = 322.18
 		cy = 240.03
 		fx = 434.89
 		fy = 434.89
-	elif (name == "iphone_lidar"):
+	elif (name == "apple_lidar"):
 		# https://developer.apple.com/forums/thread/663995
+		cx = 233.9272925 # 960 / 3840 * 935.70917
+		cy = 178.40451 # 720 / 2880 * 713.61804
+		fx = 399.585 # 960 / 3840 * 1598.34
+		fy = 399.585 # 720 / 2880 * 1598.34
+		'''
 		cx = 130.122 # 534 / 3840 * 935.70917
 		cy = 95.149 # 384 / 2880 * 713.61804
 		fx = 222.269 # 534 / 3840 * 1598.34
 		fy = 213.112 # 384 / 2880 * 1598.34
+		'''
 	elif (name == "orbbec_astra"):
 		# https://github.com/raulmur/ORB_SLAM2/issues/524
 		cx = 308.189
