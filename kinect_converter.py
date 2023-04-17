@@ -153,6 +153,11 @@ def point_cloud_from_rgbd(rgb, depth, name="generic", mode="default"):
 
     return pcd
 
+def mesh_from_point_cloud(pcd):
+	pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+	mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd)
+	return mesh
+
 def xyz_from_point_cloud(pcd, u, v, width):
     loc = u + v * width
     return pcd.points[loc]
@@ -160,13 +165,17 @@ def xyz_from_point_cloud(pcd, u, v, width):
 def save_point_cloud(pcd, name="output.ply"):
     o3d.io.write_point_cloud(name, pcd)
 
+def save_mesh(mesh, name="output.ply"):
+	o3d.io.write_triangle_mesh(name, mesh)
+
 def cv2_to_o3d(img):
     return o3d.geometry.Image(np.asarray(img))
 
 # old method with no open3d dependency
-def uvd_to_xyz(u, v, d, scale=1, name="generic", mode="default"):
+def uvd_to_xyz(u, v, d, depth_scale=1, name="generic", mode="default"):
     cx, cy, fx, fy, width, height = get_intrinsics(name, mode)
 
+    '''
     d *= scale
     x_over_z = (cx - u) / fx
     y_over_z = (cy - v) / fy
@@ -174,6 +183,13 @@ def uvd_to_xyz(u, v, d, scale=1, name="generic", mode="default"):
     z = d / np.sqrt(1. + x_over_z**2 + y_over_z**2)
     x = x_over_z * z
     y = y_over_z * z
+
+    # open3d version
+    # http://www.open3d.org/docs/0.6.0/python_api/open3d.geometry.create_point_cloud_from_rgbd_image.html
+    '''
+    z = d * depth_scale
+    x = (u - cx) * z / fx
+    y = (v - cy) * z / fy
 
     #print((x, y, z))
 

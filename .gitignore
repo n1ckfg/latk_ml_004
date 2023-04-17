@@ -9,3 +9,4 @@ input2/
 output/
 output2/
 checkpoints.zip
+*.ply

@@ -15,9 +15,9 @@ rem rmdir /s /q %DEPTH_PATH%
 rem python midas\run.py --input_path %RGB_PATH% --output_path %DEPTH_PATH% --model_weights midas\model\model-f6b98070.pt 
 
 set LINE_THRESHOLD=64
-set USE_SWIG=0
+set USE_SWIG=1
 set INPAINT=0
-set DEPTH_CAMERA_NAME="generic"
+set DEPTH_CAMERA_NAME="apple_lidar"
 set DEPTH_CAMERA_MODE="default"
 
 python skeletonizer.py -- %RESULT_PATH% %RGB_PATH% %DEPTH_PATH% %LINE_THRESHOLD% %USE_SWIG% %INPAINT% %DEPTH_CAMERA_NAME% %DEPTH_CAMERA_MODE%
