@@ -7,7 +7,7 @@ MAX_FRAMES=9999
 RENDER_RES=480 # 480
 
 rm -rf $RESULT_PATH
-python test.py --name $STYLE --dataroot $RGB_PATH --how_many $MAX_FRAMES --size $RENDER_RES
+python informative-drawings/test.py --name $STYLE --dataroot $RGB_PATH --how_many $MAX_FRAMES --size $RENDER_RES
 
 if [ "$1" = "midas" ]
 then
