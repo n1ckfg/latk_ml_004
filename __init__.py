@@ -12,6 +12,11 @@ from bpy.types import Operator, AddonPreferences
 from bpy.props import (BoolProperty, FloatProperty, StringProperty, IntProperty, PointerProperty, EnumProperty)
 from bpy_extras.io_utils import (ImportHelper, ExportHelper)
 
+import argparse
+import cv2
+import numpy as np
+import onnxruntime
+
 class latkml004Preferences(bpy.types.AddonPreferences):
     bl_idname = __name__
 
@@ -34,7 +39,7 @@ class latkml004Preferences(bpy.types.AddonPreferences):
 # https://docs.blender.org/api/current/bpy.types.AddonPreferences.html
 class OBJECT_OT_latkml004_prefs(Operator):
     """Display example preferences"""
-    bl_idname = "object.steve" #+ __name__
+    bl_idname = "object.latkml004"
     bl_label = "latkml004 Preferences"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -82,7 +87,7 @@ class latkml004Properties_Panel(bpy.types.Panel):
     """Creates a Panel in the 3D View context"""
     bl_idname = "GREASE_PENCIL_PT_latkml004PropertiesPanel"
     bl_space_type = 'VIEW_3D'
-    bl_label = "latk-ml-004"
+    bl_label = "latkml004"
     bl_category = "Latk"
     bl_region_type = 'UI'
     #bl_context = "objectmode" # "mesh_edit"
@@ -97,8 +102,8 @@ class latkml004Properties_Panel(bpy.types.Panel):
         latkml004 = scene.latkml004_settings
 
         row = layout.row()
-        row.operator("latkml004_button.allframes")
         row.operator("latkml004_button.singleframe")
+        row.operator("latkml004_button.allframes")
         #row.prop(latkml004, "material_shader_mode")
 
 classes = (
@@ -123,3 +128,76 @@ def unregister():
 if __name__ == "__main__":
     register()
 
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+'''
+@echo off
+
+set STYLE=anime_style
+rem STYLE=opensketch_style
+set RGB_PATH=input
+set DEPTH_PATH=output
+set RESULT_PATH=results\%STYLE%
+set MAX_FRAMES=999
+set RENDER_RES=480
+
+rmdir /s /q %RESULT_PATH%
+python informative-drawings\test.py --name %STYLE% --dataroot %RGB_PATH% --how_many %MAX_FRAMES% --size %RENDER_RES%
+
+rmdir /s /q %DEPTH_PATH%
+python midas\run.py --input_path %RGB_PATH% --output_path %DEPTH_PATH% --model_weights midas\model\model-f6b98070.pt 
+
+set LINE_THRESHOLD=64
+set USE_SWIG=1
+set INPAINT=0
+set DEPTH_CAMERA_NAME="apple_lidar"
+set DEPTH_CAMERA_MODE="default"
+
+python skeletonizer.py -- %RESULT_PATH% %RGB_PATH% %DEPTH_PATH% %LINE_THRESHOLD% %USE_SWIG% %INPAINT% %DEPTH_CAMERA_NAME% %DEPTH_CAMERA_MODE%
+
+@pause
+'''
+
+class Informative_Drawings():
+    def __init__(self, modelpath):
+        try:
+            cv_net = cv2.dnn.readNet(modelpath)
+        except:
+            print('opencv read onnx failed!!!')
+        so = onnxruntime.SessionOptions()
+        so.log_severity_level = 3
+        self.net = onnxruntime.InferenceSession(modelpath, so)
+        input_shape = self.net.get_inputs()[0].shape
+        self.input_height = int(input_shape[2])
+        self.input_width = int(input_shape[3])
+        self.input_name = self.net.get_inputs()[0].name
+        self.output_name = self.net.get_outputs()[0].name
+
+    def detect(self, srcimg):
+        img = cv2.resize(srcimg, dsize=(self.input_width, self.input_height))
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        blob = np.expand_dims(np.transpose(img.astype(np.float32), (2, 0, 1)), axis=0).astype(np.float32)
+        outs = self.net.run([self.output_name], {self.input_name: blob})
+
+        result = outs[0].squeeze()
+        result *= 255
+        result = cv2.resize(result.astype('uint8'), (srcimg.shape[1], srcimg.shape[0]))
+        return result
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--imgpath", type=str, default='images/2.jpg', help='image path')
+    parser.add_argument("--modelpath", type=str, default='weights/opensketch_style_512x512.onnx', choices=["weights/opensketch_style_512x512.onnx", "weights/anime_style_512x512.onnx", "weights/contour_style_512x512.onnx"], help='onnx filepath')
+    args = parser.parse_args()
+
+    mynet = Informative_Drawings(args.modelpath)
+    srcimg = cv2.imread(args.imgpath)
+    result = mynet.detect(srcimg)
+
+    cv2.namedWindow('srcimg', cv2.WINDOW_NORMAL)
+    cv2.imshow('srcimg', srcimg)
+    winName = 'Deep learning in onnxruntime'
+    cv2.namedWindow(winName, cv2.WINDOW_NORMAL)
+    cv2.imshow(winName, result)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
