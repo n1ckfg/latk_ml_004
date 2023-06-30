@@ -8,6 +8,8 @@ bl_info = {
 }
 
 import bpy
+import gpu
+import bgl
 from bpy.types import Operator, AddonPreferences
 from bpy.props import (BoolProperty, FloatProperty, StringProperty, IntProperty, PointerProperty, EnumProperty)
 from bpy_extras.io_utils import (ImportHelper, ExportHelper)
@@ -79,7 +81,7 @@ class latkml004_Button_SingleFrame(bpy.types.Operator):
     
     def execute(self, context):
         # function goes here
-        pass
+        renderTest()
         return {'FINISHED'}
 
 # https://blender.stackexchange.com/questions/167862/how-to-create-a-button-on-the-n-panel
@@ -127,6 +129,84 @@ def unregister():
 
 if __name__ == "__main__":
     register()
+
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+# https://blender.stackexchange.com/questions/262742/python-bpy-2-8-render-directly-to-matrix-array
+# https://blender.stackexchange.com/questions/2170/how-to-access-render-result-pixels-from-python-script/3054#3054
+def renderTest():
+    '''
+    w = bpy.context.scene.render.resolution_x
+    h = bpy.context.scene.render.resolution_y
+
+    # switch on nodes
+    bpy.context.scene.use_nodes = True
+    tree = bpy.context.scene.node_tree
+    links = tree.links
+      
+    # clear default nodes
+    for n in tree.nodes:
+        tree.nodes.remove(n)
+      
+    # create input render layer node
+    rl = tree.nodes.new("CompositorNodeRLayers")      
+    rl.location = 185,285
+     
+    # create output node
+    v = tree.nodes.new("CompositorNodeViewer")   
+    v.location = 750,210
+    v.use_alpha = False
+     
+    # Links
+    links.new(rl.outputs[0], v.inputs[0])  # link Image output to Viewer input
+     
+    # render
+    bpy.ops.render.render()
+     
+    # get viewer pixels
+    image = bpy.data.images["Viewer Node"]
+    pixels = image.pixels
+    print(len(pixels)) # size is always width * height * 4 (rgba)
+     
+    # copy buffer to numpy array for faster manipulation
+    image_data = np.array(pixels[:])
+
+    # Reshape and flip the image vertically
+    image_data = image_data.reshape(w, h, 4)
+    image_data = np.flipud(image_data)
+    '''
+    # Access the pixel values
+    '''
+    for x in range(0, w):
+        for y in range(0, h):
+            col = image_data[x, y]
+            col = [1, col[1], col[2], col[3]]
+    '''
+
+    bpy.ops.render.render()
+
+    render_result = next(image for image in bpy.data.images if image.type == "RENDER_RESULT")
+
+    # Create a GPU texture that shares GPU memory with Blender
+    gpu_tex = gpu.texture.from_image(render_result)
+
+    # Read image from GPU
+    gpu_tex.read()
+
+    # OR read image into a NumPy array (might be more convenient for later operations)
+    fbo = gpu.types.GPUFrameBuffer(color_slots=(gpu_tex,))
+
+    buffer_np = np.empty(gpu_tex.width * gpu_tex.height * 4, dtype=np.float32)
+    buffer = bgl.Buffer(bgl.GL_FLOAT, buffer_np.shape, buffer_np)
+    with fbo.bind():
+        bgl.glReadBuffer(bgl.GL_BACK)
+        bgl.glReadPixels(0, 0, gpu_tex.width, gpu_tex.height, bgl.GL_RGBA, bgl.GL_FLOAT, buffer)
+
+    # Now the NumPy array has the pixel data, you can reshape it and/or export it as bytes if you wish
+    print(buffer_np)
+
+    render_result.file_format = 'PNG'
+    render_result.filepath = "/Users/nick/Desktop/test.png"
+    render_result.save()
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
