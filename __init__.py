@@ -98,8 +98,13 @@ class latkml004_Button_AllFrames(bpy.types.Operator):
     bl_options = {'UNDO'}
     
     def execute(self, context):
-        # function goes here
-        pass
+        onnx = loadModel()
+
+        start, end = lb.getStartEnd()
+        for i in range(start, end):
+            lb.goToFrame(i)
+            renderFrame(onnx)
+
         return {'FINISHED'}
 
 class latkml004_Button_SingleFrame(bpy.types.Operator):
@@ -109,8 +114,9 @@ class latkml004_Button_SingleFrame(bpy.types.Operator):
     bl_options = {'UNDO'}
     
     def execute(self, context):
-        # function goes here
-        renderTest()
+        onnx = loadModel()
+        renderFrame(onnx)
+
         return {'FINISHED'}
 
 # https://blender.stackexchange.com/questions/167862/how-to-create-a-button-on-the-n-panel
@@ -205,22 +211,24 @@ def remap(value, min1, max1, min2, max2):
     '''
     return np.interp(value,[min1, max1],[min2, max2])
 
-# https://blender.stackexchange.com/questions/262742/python-bpy-2-8-render-directly-to-matrix-array
-# https://blender.stackexchange.com/questions/2170/how-to-access-render-result-pixels-from-python-script/3054#3054
-def renderTest():
-    img_np = renderToNp()
+def loadModel():
+    latkml004 = bpy.context.scene.latkml004_settings
 
     animeModel = "anime_style_512x512.onnx"
     contourModel = "contour_style_512x512.onnx"
     opensketchModel = "opensketch_style_512x512.onnx"
     whichModel = animeModel
 
-    latkml004 = bpy.context.scene.latkml004_settings
     if (latkml004.latkml004_ModelStyle.lower() == "contour"):
         whichModel = contourModel
     elif (latkml004.latkml004_ModelStyle.lower() == "contour"):
         whichModel = opensketchModel
-    onnx = Informative_Drawings(os.path.join(findAddonPath(), os.path.join("onnx", whichModel)))
+    return Informative_Drawings(os.path.join(findAddonPath(), os.path.join("onnx", whichModel)))
+
+# https://blender.stackexchange.com/questions/262742/python-bpy-2-8-render-directly-to-matrix-array
+# https://blender.stackexchange.com/questions/2170/how-to-access-render-result-pixels-from-python-script/3054#3054
+def renderFrame(onnx):
+    img_np = renderToNp()
     img_cv = npToCv(img_np)
     result = onnx.detect(img_cv)
     
