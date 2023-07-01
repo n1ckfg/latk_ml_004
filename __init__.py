@@ -256,21 +256,21 @@ def renderTest():
     xRange = np.linspace(topLeft[0], topRight[0], resolutionX)
     yRange = np.linspace(topLeft[1], bottomLeft[1], resolutionY)
 
-    for stroke in polys:
-        laPoints = []
-        for point in stroke:
-            #rgbPixel = imRgb[point[1]][point[0]]
-            #rgbPixel2 = (rgbPixel[2] / 255, rgbPixel[1] / 255, rgbPixel[0] / 255, 1)
+    for target in bpy.data.objects:
+        if target.type == "MESH":
+            matrixWorld = target.matrix_world
+            matrixWorldInverted = matrixWorld.inverted()
+            origin = matrixWorldInverted @ camera.matrix_world.translation
 
-            xPos = remap(point[0], 0, resolutionX, xRange.min(), xRange.max())
-            yPos = remap(resolutionY - point[1], 0, resolutionY, yRange.min(), yRange.max())
+            for stroke in polys:
+                laPoints = []
+                for point in stroke:
+                    #rgbPixel = imRgb[point[1]][point[0]]
+                    #rgbPixel2 = (rgbPixel[2] / 255, rgbPixel[1] / 255, rgbPixel[0] / 255, 1)
 
-            for target in bpy.data.objects:
-                if target.type == "MESH":
-                    matrixWorld = target.matrix_world
-                    matrixWorldInverted = matrixWorld.inverted()
-                    origin = matrixWorldInverted @ camera.matrix_world.translation
-                    
+                    xPos = remap(point[0], 0, resolutionX, xRange.min(), xRange.max())
+                    yPos = remap(point[1], 0, resolutionY, yRange.max(), yRange.min())
+                   
                     pixelVector = Vector((xPos, yPos, topLeft[2]))
                     pixelVector.rotate(camera.matrix_world.to_quaternion())
                     destination = matrixWorldInverted @ (pixelVector + camera.matrix_world.translation) 
@@ -278,17 +278,24 @@ def renderTest():
                     hit, location, norm, face = target.ray_cast(origin, direction)
 
                     if hit:
+                        location = target.matrix_world @ location
                         co = (location.x, location.y, location.z)
                         laPoint = latk.LatkPoint(co)
                         #lPoint.vertex_color = rgbPixel2
                         laPoints.append(laPoint)
 
-        if (len(laPoints) > 1):
-            laFrame.strokes.append(latk.LatkStroke(laPoints))
+                if (len(laPoints) > 1):
+                    laFrame.strokes.append(latk.LatkStroke(laPoints))
 
     la.layers[0].frames.append(laFrame)
 
     lb.fromLatkToGp(la)
+
+    newGp = lb.getActiveGp()
+
+    bpy.ops.object.gpencil_modifier_add(type="GP_THICK")
+    newGp.grease_pencil_modifiers["Thickness"].thickness_factor = 100.0 
+    bpy.ops.object.gpencil_modifier_apply(apply_as="DATA", modifier="Thickness")
 
     '''
     blender_img = cvToBlender(result)
