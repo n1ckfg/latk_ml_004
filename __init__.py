@@ -186,6 +186,7 @@ def renderTest():
 
     render_result = next(image for image in bpy.data.images if image.type == "RENDER_RESULT")
 
+    '''
     # Create a GPU texture that shares GPU memory with Blender
     gpu_tex = gpu.texture.from_image(render_result)
 
@@ -203,7 +204,7 @@ def renderTest():
 
     # Now the NumPy array has the pixel data, you can reshape it and/or export it as bytes if you wish
     print(buffer_np)
-
+    '''
     render_result.file_format = 'PNG'
     render_result.filepath = "/Users/nick/Desktop/test.png"
     render_result.save()
