@@ -16,10 +16,27 @@ from bpy_extras.io_utils import (ImportHelper, ExportHelper)
 import addon_utils
 
 import os
+import sys
 import argparse
 import cv2
 import numpy as np
 import onnxruntime
+import latk
+import latk_blender as lb
+from skimage.morphology import skeletonize
+from mathutils import Vector
+
+def findAddonPath(name=None):
+    if not name:
+        name = __name__
+    for mod in addon_utils.modules():
+        if mod.bl_info["name"] == name:
+            url = mod.__file__
+            return os.path.dirname(url)
+    return None
+
+sys.path.append(os.path.join(findAddonPath(), "skeleton-tracing/swig"))
+from trace_skeleton import *
 
 class latkml004Preferences(bpy.types.AddonPreferences):
     bl_idname = __name__
@@ -145,16 +162,12 @@ if __name__ == "__main__":
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-def findAddonPath(name):
-    for mod in addon_utils.modules():
-        if mod.bl_info["name"] == name:
-            url = mod.__file__
-            return os.path.dirname(url)
-    return None
-
 def npToCv(img):
     img = img.astype(np.float32)
     return cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+def cvToNp(img):
+    return np.asarray(img)
 
 def cvToBlender(img):
     rgb_image = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA)
@@ -198,10 +211,62 @@ def renderTest():
         whichModel = contourModel
     elif (latkml004.latkml004_ModelStyle.lower() == "contour"):
         whichModel = opensketchModel
-    onnx = Informative_Drawings(os.path.join(findAddonPath(__name__), os.path.join("onnx", whichModel)))
+    onnx = Informative_Drawings(os.path.join(findAddonPath(), os.path.join("onnx", whichModel)))
     result = onnx.detect(npToCv(buffer_np))
     
-    cv2.imwrite(os.path.join(bpy.app.tempdir, "output.png"), result)
+    outputUrl = os.path.join(bpy.app.tempdir, "output.png")
+    cv2.imwrite(outputUrl, result)
+
+    lineThreshold = 64
+    csize = 10
+    maxIter = 999
+
+    im0 = cv2.imread(outputUrl)
+    im0 = cv2.bitwise_not(im0) # invert
+    imWidth = len(im0[0])
+    imHeight = len(im0)
+    im = (im0[:,:,0] > lineThreshold).astype(np.uint8)
+    im = skeletonize(im).astype(np.uint8)
+    polys = from_numpy(im, csize, maxIter)
+
+    la = latk.Latk()
+    la.layers.append(latk.LatkLayer())
+    frame = latk.LatkFrame(frame_number=bpy.context.scene.frame_current)
+
+    scene = bpy.context.scene
+    camera = bpy.context.scene.camera
+
+    ray_origin = camera.location
+    ray_direction = camera.matrix_world @ Vector((0, 0, -1))
+    render = bpy.context.scene.render
+    aspect_ratio = render.resolution_x / render.resolution_y
+    ray_origin = camera.location
+
+    for stroke in polys:
+        lPoints = []
+        for point in stroke:
+            #rgbPixel = imRgb[point[1]][point[0]]
+            #rgbPixel2 = (rgbPixel[2] / 255, rgbPixel[1] / 255, rgbPixel[0] / 255, 1)
+
+            screen_x = point[0]
+            screen_y = point[1]
+            normalized_x = (screen_x - 0.5) * 2.0 * aspect_ratio
+            normalized_y = (screen_y - 0.5) * -2.0
+            ray_direction = camera.matrix_world @ Vector((normalized_x, normalized_y, -1)).normalized()
+            
+            hit, location, _, _, obj, _ = scene.ray_cast(ray_origin, ray_direction)
+
+            co = (location.x, location.y, location.z)
+            lPoint = latk.LatkPoint(co)
+            #lPoint.vertex_color = rgbPixel2
+            lPoints.append(lPoint)
+
+        if (len(lPoints) > 1):
+            frame.strokes.append(latk.LatkStroke(lPoints))
+
+    la.layers[0].frames.append(frame)
+
+    lb.fromLatkToGp(la)
 
     '''
     blender_img = cvToBlender(result)
@@ -211,34 +276,6 @@ def renderTest():
     '''
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
-'''
-@echo off
-
-set STYLE=anime_style
-rem STYLE=opensketch_style
-set RGB_PATH=input
-set DEPTH_PATH=output
-set RESULT_PATH=results\%STYLE%
-set MAX_FRAMES=999
-set RENDER_RES=480
-
-rmdir /s /q %RESULT_PATH%
-python informative-drawings\test.py --name %STYLE% --dataroot %RGB_PATH% --how_many %MAX_FRAMES% --size %RENDER_RES%
-
-rmdir /s /q %DEPTH_PATH%
-python midas\run.py --input_path %RGB_PATH% --output_path %DEPTH_PATH% --model_weights midas\model\model-f6b98070.pt 
-
-set LINE_THRESHOLD=64
-set USE_SWIG=1
-set INPAINT=0
-set DEPTH_CAMERA_NAME="apple_lidar"
-set DEPTH_CAMERA_MODE="default"
-
-python skeletonizer.py -- %RESULT_PATH% %RGB_PATH% %DEPTH_PATH% %LINE_THRESHOLD% %USE_SWIG% %INPAINT% %DEPTH_CAMERA_NAME% %DEPTH_CAMERA_MODE%
-
-@pause
-'''
 
 class Informative_Drawings():
     def __init__(self, modelpath):
@@ -284,4 +321,32 @@ if __name__ == '__main__':
     cv2.imshow(winName, result)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+'''
+
+'''
+@echo off
+
+set STYLE=anime_style
+rem STYLE=opensketch_style
+set RGB_PATH=input
+set DEPTH_PATH=output
+set RESULT_PATH=results\%STYLE%
+set MAX_FRAMES=999
+set RENDER_RES=480
+
+rmdir /s /q %RESULT_PATH%
+python informative-drawings\test.py --name %STYLE% --dataroot %RGB_PATH% --how_many %MAX_FRAMES% --size %RENDER_RES%
+
+rmdir /s /q %DEPTH_PATH%
+python midas\run.py --input_path %RGB_PATH% --output_path %DEPTH_PATH% --model_weights midas\model\model-f6b98070.pt 
+
+set LINE_THRESHOLD=64
+set USE_SWIG=1
+set INPAINT=0
+set DEPTH_CAMERA_NAME="apple_lidar"
+set DEPTH_CAMERA_MODE="default"
+
+python skeletonizer.py -- %RESULT_PATH% %RGB_PATH% %DEPTH_PATH% %LINE_THRESHOLD% %USE_SWIG% %INPAINT% %DEPTH_CAMERA_NAME% %DEPTH_CAMERA_MODE%
+
+@pause
 '''
