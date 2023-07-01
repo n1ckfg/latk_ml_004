@@ -208,7 +208,7 @@ def remap(value, min1, max1, min2, max2):
 # https://blender.stackexchange.com/questions/262742/python-bpy-2-8-render-directly-to-matrix-array
 # https://blender.stackexchange.com/questions/2170/how-to-access-render-result-pixels-from-python-script/3054#3054
 def renderTest():
-    buffer_np = renderToNp()
+    img_np = renderToNp()
 
     animeModel = "anime_style_512x512.onnx"
     contourModel = "contour_style_512x512.onnx"
@@ -221,7 +221,8 @@ def renderTest():
     elif (latkml004.latkml004_ModelStyle.lower() == "contour"):
         whichModel = opensketchModel
     onnx = Informative_Drawings(os.path.join(findAddonPath(), os.path.join("onnx", whichModel)))
-    result = onnx.detect(npToCv(buffer_np))
+    img_cv = npToCv(img_np)
+    result = onnx.detect(img_cv)
     
     outputUrl = os.path.join(bpy.app.tempdir, "output.png")
     cv2.imwrite(outputUrl, result)
@@ -229,6 +230,7 @@ def renderTest():
     lineThreshold = 64
     csize = 10
     maxIter = 999
+    gpThickness = 30
 
     im0 = cv2.imread(outputUrl)
     im0 = cv2.bitwise_not(im0) # invert
@@ -265,8 +267,9 @@ def renderTest():
             for stroke in polys:
                 laPoints = []
                 for point in stroke:
-                    #rgbPixel = imRgb[point[1]][point[0]]
+                    rgbPixel = img_cv[point[1]][point[0]]
                     #rgbPixel2 = (rgbPixel[2] / 255, rgbPixel[1] / 255, rgbPixel[0] / 255, 1)
+                    rgbPixel2 = (rgbPixel[2], rgbPixel[1], rgbPixel[0], 1)
 
                     xPos = remap(point[0], 0, resolutionX, xRange.min(), xRange.max())
                     yPos = remap(point[1], 0, resolutionY, yRange.max(), yRange.min())
@@ -281,7 +284,7 @@ def renderTest():
                         location = target.matrix_world @ location
                         co = (location.x, location.y, location.z)
                         laPoint = latk.LatkPoint(co)
-                        #lPoint.vertex_color = rgbPixel2
+                        laPoint.vertex_color = rgbPixel2
                         laPoints.append(laPoint)
 
                 if (len(laPoints) > 1):
@@ -294,7 +297,7 @@ def renderTest():
     newGp = lb.getActiveGp()
 
     bpy.ops.object.gpencil_modifier_add(type="GP_THICK")
-    newGp.grease_pencil_modifiers["Thickness"].thickness_factor = 100.0 
+    newGp.grease_pencil_modifiers["Thickness"].thickness_factor = gpThickness 
     bpy.ops.object.gpencil_modifier_apply(apply_as="DATA", modifier="Thickness")
 
     '''
