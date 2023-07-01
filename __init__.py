@@ -100,11 +100,17 @@ class latkml004_Button_AllFrames(bpy.types.Operator):
     def execute(self, context):
         onnx = loadModel()
 
+        la = latk.Latk()
+        la.layers.append(latk.LatkLayer())
+
         start, end = lb.getStartEnd()
         for i in range(start, end):
             lb.goToFrame(i)
-            renderFrame(onnx)
+            laFrame = renderFrame(onnx)
+            la.layers[0].frames.append(laFrame)
 
+        lb.fromLatkToGp(la)
+        setThickness(30)
         return {'FINISHED'}
 
 class latkml004_Button_SingleFrame(bpy.types.Operator):
@@ -115,8 +121,14 @@ class latkml004_Button_SingleFrame(bpy.types.Operator):
     
     def execute(self, context):
         onnx = loadModel()
-        renderFrame(onnx)
 
+        la = latk.Latk()
+        la.layers.append(latk.LatkLayer())
+        laFrame = renderFrame(onnx)
+        la.layers[0].frames.append(laFrame)
+        
+        lb.fromLatkToGp(la)
+        setThickness(30)
         return {'FINISHED'}
 
 # https://blender.stackexchange.com/questions/167862/how-to-create-a-button-on-the-n-panel
@@ -238,7 +250,6 @@ def renderFrame(onnx):
     lineThreshold = 64
     csize = 10
     maxIter = 999
-    gpThickness = 30
 
     im0 = cv2.imread(outputUrl)
     im0 = cv2.bitwise_not(im0) # invert
@@ -248,8 +259,6 @@ def renderFrame(onnx):
     im = skeletonize(im).astype(np.uint8)
     polys = from_numpy(im, csize, maxIter)
 
-    la = latk.Latk()
-    la.layers.append(latk.LatkLayer())
     laFrame = latk.LatkFrame(frame_number=bpy.context.scene.frame_current)
 
     scene = bpy.context.scene
@@ -297,15 +306,12 @@ def renderFrame(onnx):
 
                 if (len(laPoints) > 1):
                     laFrame.strokes.append(latk.LatkStroke(laPoints))
+    return laFrame
 
-    la.layers[0].frames.append(laFrame)
-
-    lb.fromLatkToGp(la)
-
-    newGp = lb.getActiveGp()
-
+def setThickness(thickness):
+    gp = lb.getActiveGp()
     bpy.ops.object.gpencil_modifier_add(type="GP_THICK")
-    newGp.grease_pencil_modifiers["Thickness"].thickness_factor = gpThickness 
+    gp.grease_pencil_modifiers["Thickness"].thickness_factor = thickness 
     bpy.ops.object.gpencil_modifier_apply(apply_as="DATA", modifier="Thickness")
 
     '''
