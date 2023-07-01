@@ -24,7 +24,7 @@ import onnxruntime
 import latk
 import latk_blender as lb
 from skimage.morphology import skeletonize
-from mathutils import Vector
+from mathutils import Vector, Quaternion
 
 def findAddonPath(name=None):
     if not name:
@@ -196,6 +196,15 @@ def renderToNp():
     image_array = image_array[:, :, :3]
     return image_array
 
+def remap(value, min1, max1, min2, max2):
+    '''
+    range1 = max1 - min1
+    range2 = max2 - min2
+    valueScaled = float(value - min1) / float(range1)
+    return min2 + (valueScaled * range2)
+    '''
+    return np.interp(value,[min1, max1],[min2, max2])
+
 # https://blender.stackexchange.com/questions/262742/python-bpy-2-8-render-directly-to-matrix-array
 # https://blender.stackexchange.com/questions/2170/how-to-access-render-result-pixels-from-python-script/3054#3054
 def renderTest():
@@ -231,40 +240,53 @@ def renderTest():
 
     la = latk.Latk()
     la.layers.append(latk.LatkLayer())
-    frame = latk.LatkFrame(frame_number=bpy.context.scene.frame_current)
+    laFrame = latk.LatkFrame(frame_number=bpy.context.scene.frame_current)
 
     scene = bpy.context.scene
     camera = bpy.context.scene.camera
 
-    ray_origin = camera.location
-    ray_direction = camera.matrix_world @ Vector((0, 0, -1))
-    render = bpy.context.scene.render
-    aspect_ratio = render.resolution_x / render.resolution_y
-    ray_origin = camera.location
+    frame = camera.data.view_frame(scene=bpy.context.scene)
+    topRight = frame[0]
+    bottomRight = frame[1]
+    bottomLeft = frame[2]
+    topLeft = frame[3]
+
+    resolutionX = int(bpy.context.scene.render.resolution_x * (bpy.context.scene.render.resolution_percentage / 100))
+    resolutionY = int(bpy.context.scene.render.resolution_y * (bpy.context.scene.render.resolution_percentage / 100))
+    xRange = np.linspace(topLeft[0], topRight[0], resolutionX)
+    yRange = np.linspace(topLeft[1], bottomLeft[1], resolutionY)
 
     for stroke in polys:
-        lPoints = []
+        laPoints = []
         for point in stroke:
             #rgbPixel = imRgb[point[1]][point[0]]
             #rgbPixel2 = (rgbPixel[2] / 255, rgbPixel[1] / 255, rgbPixel[0] / 255, 1)
 
-            screen_x = point[0]
-            screen_y = point[1]
-            normalized_x = (screen_x - 0.5) * 2.0 * aspect_ratio
-            normalized_y = (screen_y - 0.5) * -2.0
-            ray_direction = camera.matrix_world @ Vector((normalized_x, normalized_y, -1)).normalized()
-            
-            hit, location, _, _, obj, _ = scene.ray_cast(ray_origin, ray_direction)
+            xPos = remap(point[0], 0, resolutionX, xRange.min(), xRange.max())
+            yPos = remap(resolutionY - point[1], 0, resolutionY, yRange.min(), yRange.max())
 
-            co = (location.x, location.y, location.z)
-            lPoint = latk.LatkPoint(co)
-            #lPoint.vertex_color = rgbPixel2
-            lPoints.append(lPoint)
+            for target in bpy.data.objects:
+                if target.type == "MESH":
+                    matrixWorld = target.matrix_world
+                    matrixWorldInverted = matrixWorld.inverted()
+                    origin = matrixWorldInverted @ camera.matrix_world.translation
+                    
+                    pixelVector = Vector((xPos, yPos, topLeft[2]))
+                    pixelVector.rotate(camera.matrix_world.to_quaternion())
+                    destination = matrixWorldInverted @ (pixelVector + camera.matrix_world.translation) 
+                    direction = (destination - origin).normalized()
+                    hit, location, norm, face = target.ray_cast(origin, direction)
 
-        if (len(lPoints) > 1):
-            frame.strokes.append(latk.LatkStroke(lPoints))
+                    if hit:
+                        co = (location.x, location.y, location.z)
+                        laPoint = latk.LatkPoint(co)
+                        #lPoint.vertex_color = rgbPixel2
+                        laPoints.append(laPoint)
 
-    la.layers[0].frames.append(frame)
+        if (len(laPoints) > 1):
+            laFrame.strokes.append(latk.LatkStroke(laPoints))
+
+    la.layers[0].frames.append(laFrame)
 
     lb.fromLatkToGp(la)
 
