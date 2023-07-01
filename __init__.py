@@ -56,6 +56,16 @@ class latkml004Properties(bpy.types.PropertyGroup):
     """Properties for latkml004"""
     bl_idname = "GREASE_PENCIL_PT_latkml004Properties"
 
+    latkml004_ModelStyle: EnumProperty(
+        name="ONNX Model",
+        items=(
+            ("ANIME", "Anime Style", "...", 0),
+            ("CONTOUR", "Contour Style", "...", 1),
+            ("OPENSKETCH", "OpenSketch Style", "...", 2),
+        ),
+        default="ANIME"
+    )
+
     '''
     bakeMesh: BoolProperty(
         name="Bake",
@@ -106,9 +116,10 @@ class latkml004Properties_Panel(bpy.types.Panel):
         latkml004 = scene.latkml004_settings
 
         row = layout.row()
+        row.prop(latkml004, "latkml004_ModelStyle")
+        row = layout.row()
         row.operator("latkml004_button.singleframe")
         row.operator("latkml004_button.allframes")
-        #row.prop(latkml004, "material_shader_mode")
 
 classes = (
     OBJECT_OT_latkml004_prefs,
@@ -141,8 +152,9 @@ def findAddonPath(name):
             return os.path.dirname(url)
     return None
 
-def numpyToCv(img):
-	return cv2.cvtColor(img, cv2.COLOR_RGBA2BGRA)
+def npToCv(img):
+    img = img.astype(np.float32)
+    return cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
 def cvToBlender(img):
     rgb_image = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA)
@@ -153,89 +165,50 @@ def cvToBlender(img):
     return blender_image
 
 def renderToNp():
-    bpy.ops.render.render()
-    #~
-    render_result = next(image for image in bpy.data.images if image.type == "RENDER_RESULT")
-    #~
-    # Create a GPU texture that shares GPU memory with Blender
-    gpu_tex = gpu.texture.from_image(render_result)
-    #~
-    # Read image from GPU
-    gpu_tex.read()
-    #~
-    # OR read image into a NumPy array (might be more convenient for later operations)
-    fbo = gpu.types.GPUFrameBuffer(color_slots=(gpu_tex,))
-    #~
-    buffer_np = np.empty(gpu_tex.width * gpu_tex.height * 4, dtype=np.float32)
-    buffer = bgl.Buffer(bgl.GL_FLOAT, buffer_np.shape, buffer_np)
-    with fbo.bind():
-        bgl.glReadBuffer(bgl.GL_BACK)
-        bgl.glReadPixels(0, 0, gpu_tex.width, gpu_tex.height, bgl.GL_RGBA, bgl.GL_FLOAT, buffer)
-    #~
-    # Now the NumPy array has the pixel data, you can reshape it and/or export it as bytes if you wish
-    #print(buffer_np)
-    return buffer_np
+    width = bpy.context.scene.render.resolution_x
+    height = bpy.context.scene.render.resolution_y
+    output_path = os.path.join(bpy.app.tempdir, "render.png")
+    bpy.context.scene.render.filepath = output_path
+
+    oldFormat = bpy.context.scene.render.image_settings.file_format
+    bpy.context.scene.render.image_settings.file_format = "PNG"
+    bpy.ops.render.render(write_still=True)
+    bpy.context.scene.render.image_settings.file_format = oldFormat
+
+    image_path = bpy.context.scene.render.filepath
+    image = bpy.data.images.load(image_path)
+    image_array = np.array(image.pixels[:])
+    image_array = image_array.reshape((height, width, 4))
+    image_array = np.flipud(image_array)
+    image_array = image_array[:, :, :3]
+    return image_array
 
 # https://blender.stackexchange.com/questions/262742/python-bpy-2-8-render-directly-to-matrix-array
 # https://blender.stackexchange.com/questions/2170/how-to-access-render-result-pixels-from-python-script/3054#3054
 def renderTest():
-    '''
-    w = bpy.context.scene.render.resolution_x
-    h = bpy.context.scene.render.resolution_y
-
-    # switch on nodes
-    bpy.context.scene.use_nodes = True
-    tree = bpy.context.scene.node_tree
-    links = tree.links
-      
-    # clear default nodes
-    for n in tree.nodes:
-        tree.nodes.remove(n)
-      
-    # create input render layer node
-    rl = tree.nodes.new("CompositorNodeRLayers")      
-    rl.location = 185,285
-     
-    # create output node
-    v = tree.nodes.new("CompositorNodeViewer")   
-    v.location = 750,210
-    v.use_alpha = False
-     
-    # Links
-    links.new(rl.outputs[0], v.inputs[0])  # link Image output to Viewer input
-     
-    # render
-    bpy.ops.render.render()
-     
-    # get viewer pixels
-    image = bpy.data.images["Viewer Node"]
-    pixels = image.pixels
-    print(len(pixels)) # size is always width * height * 4 (rgba)
-     
-    # copy buffer to numpy array for faster manipulation
-    image_data = np.array(pixels[:])
-
-    # Reshape and flip the image vertically
-    image_data = image_data.reshape(w, h, 4)
-    image_data = np.flipud(image_data)
-    '''
-    # Access the pixel values
-    '''
-    for x in range(0, w):
-        for y in range(0, h):
-            col = image_data[x, y]
-            col = [1, col[1], col[2], col[3]]
-    '''
-
     buffer_np = renderToNp()
 
-    mynet = Informative_Drawings(os.path.join(findAddonPath(__name__), "onnx/anime_style_512x512.onnx"))
-    result = mynet.detect(numpyToCv(buffer_np))
+    animeModel = "anime_style_512x512.onnx"
+    contourModel = "contour_style_512x512.onnx"
+    opensketchModel = "opensketch_style_512x512.onnx"
+    whichModel = animeModel
 
+    latkml004 = bpy.context.scene.latkml004_settings
+    if (latkml004.latkml004_ModelStyle.lower() == "contour"):
+        whichModel = contourModel
+    elif (latkml004.latkml004_ModelStyle.lower() == "contour"):
+        whichModel = opensketchModel
+    onnx = Informative_Drawings(os.path.join(findAddonPath(__name__), os.path.join("onnx", whichModel)))
+    result = onnx.detect(npToCv(buffer_np))
+    
+    cv2.imwrite(os.path.join(bpy.app.tempdir, "output.png"), result)
+
+    '''
     blender_img = cvToBlender(result)
     blender_img.file_format = 'PNG'
-    blender_img.filepath = os.path.join(bpy.app.tempdir, "test.png")
+    blender_img.filepath = os.path.join(bpy.app.tempdir, "output.png")
     blender_img.save()
+    '''
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
