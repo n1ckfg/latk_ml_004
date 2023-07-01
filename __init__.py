@@ -1,8 +1,8 @@
 bl_info = {
     "name": "latk-ml-004", 
     "author": "Nick Fox-Gieg",
-	"version": (0, 0, 1),
-	"blender": (3, 0, 0),
+    "version": (0, 0, 1),
+    "blender": (3, 0, 0),
     "description": "Generate brushstrokes from a mesh using informative-drawings",
     "category": "Animation"
 }
@@ -13,7 +13,9 @@ import bgl
 from bpy.types import Operator, AddonPreferences
 from bpy.props import (BoolProperty, FloatProperty, StringProperty, IntProperty, PointerProperty, EnumProperty)
 from bpy_extras.io_utils import (ImportHelper, ExportHelper)
+import addon_utils
 
+import os
 import argparse
 import cv2
 import numpy as np
@@ -28,7 +30,7 @@ class latkml004Preferences(bpy.types.AddonPreferences):
         description = "After Effects JSX export",
         default = False
     )
-	'''
+    '''
 
     def draw(self, context):
         layout = self.layout
@@ -60,7 +62,7 @@ class latkml004Properties(bpy.types.PropertyGroup):
         description="Off: major speedup if you're staying in Blender. On: slower but keeps everything exportable",
         default=True
     )
-	'''
+    '''
 
 class latkml004_Button_AllFrames(bpy.types.Operator):
     """Operate on all frames"""
@@ -113,8 +115,8 @@ classes = (
     latkml004Preferences,
     latkml004Properties,
     latkml004Properties_Panel,
-	latkml004_Button_AllFrames,
-	latkml004_Button_SingleFrame
+    latkml004_Button_AllFrames,
+    latkml004_Button_SingleFrame
 )
 
 def register():
@@ -131,6 +133,49 @@ if __name__ == "__main__":
     register()
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+def findAddonPath(name):
+    for mod in addon_utils.modules():
+        if mod.bl_info["name"] == name:
+            url = mod.__file__
+            return os.path.dirname(url)
+    return None
+
+def numpyToCv(img):
+	return cv2.cvtColor(img, cv2.COLOR_RGBA2BGRA)
+
+def cvToBlender(img):
+    rgb_image = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA)
+    blender_image = bpy.data.images.new("Image", width=rgb_image.shape[1], height=rgb_image.shape[0])
+    pixels = np.flip(rgb_image.flatten())
+    blender_image.pixels.foreach_set(pixels)
+    blender_image.update()
+    return blender_image
+
+def renderToNp():
+    bpy.ops.render.render()
+    #~
+    render_result = next(image for image in bpy.data.images if image.type == "RENDER_RESULT")
+    #~
+    # Create a GPU texture that shares GPU memory with Blender
+    gpu_tex = gpu.texture.from_image(render_result)
+    #~
+    # Read image from GPU
+    gpu_tex.read()
+    #~
+    # OR read image into a NumPy array (might be more convenient for later operations)
+    fbo = gpu.types.GPUFrameBuffer(color_slots=(gpu_tex,))
+    #~
+    buffer_np = np.empty(gpu_tex.width * gpu_tex.height * 4, dtype=np.float32)
+    buffer = bgl.Buffer(bgl.GL_FLOAT, buffer_np.shape, buffer_np)
+    with fbo.bind():
+        bgl.glReadBuffer(bgl.GL_BACK)
+        bgl.glReadPixels(0, 0, gpu_tex.width, gpu_tex.height, bgl.GL_RGBA, bgl.GL_FLOAT, buffer)
+    #~
+    # Now the NumPy array has the pixel data, you can reshape it and/or export it as bytes if you wish
+    #print(buffer_np)
+    return buffer_np
+
 # https://blender.stackexchange.com/questions/262742/python-bpy-2-8-render-directly-to-matrix-array
 # https://blender.stackexchange.com/questions/2170/how-to-access-render-result-pixels-from-python-script/3054#3054
 def renderTest():
@@ -182,32 +227,15 @@ def renderTest():
             col = [1, col[1], col[2], col[3]]
     '''
 
-    bpy.ops.render.render()
+    buffer_np = renderToNp()
 
-    render_result = next(image for image in bpy.data.images if image.type == "RENDER_RESULT")
+    mynet = Informative_Drawings(os.path.join(findAddonPath(__name__), "onnx/anime_style_512x512.onnx"))
+    result = mynet.detect(numpyToCv(buffer_np))
 
-    '''
-    # Create a GPU texture that shares GPU memory with Blender
-    gpu_tex = gpu.texture.from_image(render_result)
-
-    # Read image from GPU
-    gpu_tex.read()
-
-    # OR read image into a NumPy array (might be more convenient for later operations)
-    fbo = gpu.types.GPUFrameBuffer(color_slots=(gpu_tex,))
-
-    buffer_np = np.empty(gpu_tex.width * gpu_tex.height * 4, dtype=np.float32)
-    buffer = bgl.Buffer(bgl.GL_FLOAT, buffer_np.shape, buffer_np)
-    with fbo.bind():
-        bgl.glReadBuffer(bgl.GL_BACK)
-        bgl.glReadPixels(0, 0, gpu_tex.width, gpu_tex.height, bgl.GL_RGBA, bgl.GL_FLOAT, buffer)
-
-    # Now the NumPy array has the pixel data, you can reshape it and/or export it as bytes if you wish
-    print(buffer_np)
-    '''
-    render_result.file_format = 'PNG'
-    render_result.filepath = "/Users/nick/Desktop/test.png"
-    render_result.save()
+    blender_img = cvToBlender(result)
+    blender_img.file_format = 'PNG'
+    blender_img.filepath = os.path.join(bpy.app.tempdir, "test.png")
+    blender_img.save()
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
@@ -265,6 +293,7 @@ class Informative_Drawings():
         result = cv2.resize(result.astype('uint8'), (srcimg.shape[1], srcimg.shape[0]))
         return result
 
+'''
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--imgpath", type=str, default='images/2.jpg', help='image path')
@@ -282,3 +311,4 @@ if __name__ == '__main__':
     cv2.imshow(winName, result)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+'''
