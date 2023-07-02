@@ -86,7 +86,7 @@ class latkml004Properties(bpy.types.PropertyGroup):
     latkml004_lineThreshold: FloatProperty(
         name="lineThreshold",
         description="...",
-        default=64.0
+        default=32.0 # 64
     )
 
     latkml004_csize: IntProperty(
@@ -104,7 +104,7 @@ class latkml004Properties(bpy.types.PropertyGroup):
     latkml004_thickness: FloatProperty(
         name="thickness",
         description="...",
-        default=30.0
+        default=20.0
     )
 
 class latkml004_Button_AllFrames(bpy.types.Operator):
@@ -126,7 +126,7 @@ class latkml004_Button_AllFrames(bpy.types.Operator):
             laFrame = renderFrame(onnx)
             la.layers[0].frames.append(laFrame)
 
-        lb.fromLatkToGp(la)
+        lb.fromLatkToGp(la, resizeTimeline=False)
         setThickness(latkml004.latkml004_thickness)
         return {'FINISHED'}
 
@@ -145,7 +145,7 @@ class latkml004_Button_SingleFrame(bpy.types.Operator):
         laFrame = renderFrame(onnx)
         la.layers[0].frames.append(laFrame)
         
-        lb.fromLatkToGp(la)
+        lb.fromLatkToGp(la, resizeTimeline=False)
         setThickness(latkml004.latkml004_thickness)
         return {'FINISHED'}
 
