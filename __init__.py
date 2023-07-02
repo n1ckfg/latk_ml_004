@@ -89,6 +89,12 @@ class latkml004Properties(bpy.types.PropertyGroup):
         default=32.0 # 64
     )
 
+    latkml004_distThreshold: FloatProperty(
+        name="distThreshold",
+        description="...",
+        default=0.5
+    )
+
     latkml004_csize: IntProperty(
         name="csize",
         description="...",
@@ -176,6 +182,9 @@ class latkml004Properties_Panel(bpy.types.Panel):
 
         row = layout.row()
         row.prop(latkml004, "latkml004_lineThreshold")
+
+        row = layout.row()
+        row.prop(latkml004, "latkml004_distThreshold")
 
         row = layout.row()
         row.prop(latkml004, "latkml004_csize")
@@ -308,6 +317,11 @@ def renderFrame(onnx):
     xRange = np.linspace(topLeft[0], topRight[0], resolutionX)
     yRange = np.linspace(topLeft[1], bottomLeft[1], resolutionY)
 
+    originalStrokes = []
+    originalStrokeColors = []
+    separatedStrokes = []
+    separatedStrokeColors = []
+
     for target in bpy.data.objects:
         if target.type == "MESH":
             matrixWorld = target.matrix_world
@@ -315,10 +329,10 @@ def renderFrame(onnx):
             origin = matrixWorldInverted @ camera.matrix_world.translation
 
             for stroke in polys:
-                laPoints = []
+                newStroke = []
+                newStrokeColor = []
                 for point in stroke:
                     rgbPixel = img_cv[point[1]][point[0]]
-                    #rgbPixel2 = (rgbPixel[2] / 255, rgbPixel[1] / 255, rgbPixel[0] / 255, 1)
                     rgbPixel2 = (rgbPixel[2], rgbPixel[1], rgbPixel[0], 1)
 
                     xPos = remap(point[0], 0, resolutionX, xRange.min(), xRange.max())
@@ -333,13 +347,59 @@ def renderFrame(onnx):
                     if hit:
                         location = target.matrix_world @ location
                         co = (location.x, location.y, location.z)
-                        laPoint = latk.LatkPoint(co)
-                        laPoint.vertex_color = rgbPixel2
-                        laPoints.append(laPoint)
+                        newStroke.append(co)
+                        newStrokeColor.append(rgbPixel2)
 
-                if (len(laPoints) > 1):
-                    laFrame.strokes.append(latk.LatkStroke(laPoints))
+                if (len(newStroke) > 1):
+                    originalStrokes.append(newStroke)
+                    originalStrokeColors.append(newStrokeColor)
+
+        for i in range(0, len(originalStrokes)):
+            separatedTempStrokes, separatedTempStrokeColors = separatePointsByDistance(originalStrokes[i], originalStrokeColors[i], latkml004.latkml004_distThreshold)
+
+            for j in range(0, len(separatedTempStrokes)):
+                separatedStrokes.append(separatedTempStrokes[j])
+                separatedStrokeColors.append(separatedTempStrokeColors[j])
+
+        for i in range(0, len(separatedStrokes)):
+            laPoints = []
+            for j in range(0, len(separatedStrokes[i])):
+                laPoint = latk.LatkPoint(separatedStrokes[i][j])
+                laPoint.vertex_color = separatedStrokeColors[i][j]
+                laPoints.append(laPoint)
+
+            if (len(laPoints) > 1):
+                laFrame.strokes.append(latk.LatkStroke(laPoints))
+
     return laFrame
+
+def separatePointsByDistance(points, colors, threshold):
+    if (len(points) != len(colors)):
+        return None
+
+    separatedPoints = []
+    separatedColors = []
+    currentPoints = []
+    currentColors = []
+
+    for i in range(0, len(points) - 1):
+        currentPoints.append(points[i])
+        currentColors.append(colors[i])
+
+        distance = lb.getDistance(points[i], points[i + 1])
+
+        if (distance > threshold):
+            separatedPoints.append(currentPoints)
+            separatedColors.append(currentColors)
+            currentPoints = []
+            currentColors = []
+
+    currentPoints.append(points[len(points) - 1])
+    currentColors.append(colors[len(colors) - 1])
+    separatedPoints.append(currentPoints)
+    separatedColors.append(currentColors)
+
+    return separatedPoints, separatedColors
 
 def setThickness(thickness):
     gp = lb.getActiveGp()
