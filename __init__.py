@@ -357,6 +357,7 @@ class Informative_Drawings():
             print('opencv read onnx failed!!!')
         so = onnxruntime.SessionOptions()
         so.log_severity_level = 3
+        #self.net = onnxruntime.InferenceSession(modelpath, so, providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
         self.net = onnxruntime.InferenceSession(modelpath, so)
         input_shape = self.net.get_inputs()[0].shape
         self.input_height = int(input_shape[2])
