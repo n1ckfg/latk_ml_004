@@ -74,7 +74,7 @@ class latkml004Properties(bpy.types.PropertyGroup):
     bl_idname = "GREASE_PENCIL_PT_latkml004Properties"
 
     latkml004_ModelStyle: EnumProperty(
-        name="ONNX Model",
+        name="ONNX",
         items=(
             ("ANIME", "Anime Style", "...", 0),
             ("CONTOUR", "Contour Style", "...", 1),
@@ -83,13 +83,29 @@ class latkml004Properties(bpy.types.PropertyGroup):
         default="ANIME"
     )
 
-    '''
-    bakeMesh: BoolProperty(
-        name="Bake",
-        description="Off: major speedup if you're staying in Blender. On: slower but keeps everything exportable",
-        default=True
+    latkml004_lineThreshold: FloatProperty(
+        name="lineThreshold",
+        description="...",
+        default=64.0
     )
-    '''
+
+    latkml004_csize: IntProperty(
+        name="csize",
+        description="...",
+        default=10
+    )
+
+    latkml004_maxIter: IntProperty(
+        name="iter",
+        description="...",
+        default=999
+    )
+
+    latkml004_thickness: FloatProperty(
+        name="thickness",
+        description="...",
+        default=30.0
+    )
 
 class latkml004_Button_AllFrames(bpy.types.Operator):
     """Operate on all frames"""
@@ -98,6 +114,7 @@ class latkml004_Button_AllFrames(bpy.types.Operator):
     bl_options = {'UNDO'}
     
     def execute(self, context):
+        latkml004 = context.scene.latkml004_settings
         onnx = loadModel()
 
         la = latk.Latk()
@@ -110,7 +127,7 @@ class latkml004_Button_AllFrames(bpy.types.Operator):
             la.layers[0].frames.append(laFrame)
 
         lb.fromLatkToGp(la)
-        setThickness(30)
+        setThickness(latkml004.latkml004_thickness)
         return {'FINISHED'}
 
 class latkml004_Button_SingleFrame(bpy.types.Operator):
@@ -120,6 +137,7 @@ class latkml004_Button_SingleFrame(bpy.types.Operator):
     bl_options = {'UNDO'}
     
     def execute(self, context):
+        latkml004 = context.scene.latkml004_settings
         onnx = loadModel()
 
         la = latk.Latk()
@@ -128,7 +146,7 @@ class latkml004_Button_SingleFrame(bpy.types.Operator):
         la.layers[0].frames.append(laFrame)
         
         lb.fromLatkToGp(la)
-        setThickness(30)
+        setThickness(latkml004.latkml004_thickness)
         return {'FINISHED'}
 
 # https://blender.stackexchange.com/questions/167862/how-to-create-a-button-on-the-n-panel
@@ -145,16 +163,26 @@ class latkml004Properties_Panel(bpy.types.Panel):
         #self.layout.prop(context.scene.freestyle_gpencil_export, "enable_latk", text="")
 
     def draw(self, context):
+        latkml004 = context.scene.latkml004_settings
+
         layout = self.layout
 
-        scene = context.scene
-        latkml004 = scene.latkml004_settings
-
-        row = layout.row()
-        row.prop(latkml004, "latkml004_ModelStyle")
         row = layout.row()
         row.operator("latkml004_button.singleframe")
         row.operator("latkml004_button.allframes")
+
+        row = layout.row()
+        row.prop(latkml004, "latkml004_ModelStyle")
+
+        row = layout.row()
+        row.prop(latkml004, "latkml004_lineThreshold")
+
+        row = layout.row()
+        row.prop(latkml004, "latkml004_csize")
+        row.prop(latkml004, "latkml004_maxIter")
+
+        row = layout.row()
+        row.prop(latkml004, "latkml004_thickness")
 
 classes = (
     OBJECT_OT_latkml004_prefs,
@@ -229,17 +257,20 @@ def loadModel():
     animeModel = "anime_style_512x512.onnx"
     contourModel = "contour_style_512x512.onnx"
     opensketchModel = "opensketch_style_512x512.onnx"
+    
     whichModel = animeModel
 
     if (latkml004.latkml004_ModelStyle.lower() == "contour"):
         whichModel = contourModel
-    elif (latkml004.latkml004_ModelStyle.lower() == "contour"):
+    elif (latkml004.latkml004_ModelStyle.lower() == "opensketch"):
         whichModel = opensketchModel
     return Informative_Drawings(os.path.join(findAddonPath(), os.path.join("onnx", whichModel)))
 
 # https://blender.stackexchange.com/questions/262742/python-bpy-2-8-render-directly-to-matrix-array
 # https://blender.stackexchange.com/questions/2170/how-to-access-render-result-pixels-from-python-script/3054#3054
 def renderFrame(onnx):
+    latkml004 = bpy.context.scene.latkml004_settings
+
     img_np = renderToNp()
     img_cv = npToCv(img_np)
     result = onnx.detect(img_cv)
@@ -247,17 +278,19 @@ def renderFrame(onnx):
     outputUrl = os.path.join(bpy.app.tempdir, "output.png")
     cv2.imwrite(outputUrl, result)
 
+    '''
     lineThreshold = 64
     csize = 10
+    '''
     maxIter = 999
 
     im0 = cv2.imread(outputUrl)
     im0 = cv2.bitwise_not(im0) # invert
     imWidth = len(im0[0])
     imHeight = len(im0)
-    im = (im0[:,:,0] > lineThreshold).astype(np.uint8)
+    im = (im0[:,:,0] > latkml004.latkml004_lineThreshold).astype(np.uint8)
     im = skeletonize(im).astype(np.uint8)
-    polys = from_numpy(im, csize, maxIter)
+    polys = from_numpy(im, latkml004.latkml004_csize, latkml004.latkml004_maxIter)
 
     laFrame = latk.LatkFrame(frame_number=bpy.context.scene.frame_current)
 
@@ -313,13 +346,6 @@ def setThickness(thickness):
     bpy.ops.object.gpencil_modifier_add(type="GP_THICK")
     gp.grease_pencil_modifiers["Thickness"].thickness_factor = thickness 
     bpy.ops.object.gpencil_modifier_apply(apply_as="DATA", modifier="Thickness")
-
-    '''
-    blender_img = cvToBlender(result)
-    blender_img.file_format = 'PNG'
-    blender_img.filepath = os.path.join(bpy.app.tempdir, "output.png")
-    blender_img.save()
-    '''
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
