@@ -494,8 +494,11 @@ class Pix2pix():
         outs = cv2.cvtColor(outs, cv2.COLOR_RGB2BGR)
         outs=np.hstack((img, outs))
         print("outs",outs.shape)
-        # return cv2.resize(outs, (image.shape[1], image.shape[0]))
-        return outs
+        
+        # [y:y+height, x:x+width]
+        outs = outs[0:256, 256:512]
+        return cv2.resize(outs, (image.shape[1], image.shape[0]))
+        #return outs
 
 '''
 if __name__ == '__main__':
