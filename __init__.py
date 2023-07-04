@@ -84,16 +84,16 @@ class latkml004Properties(bpy.types.PropertyGroup):
         default="ANIME"
     )
     
+    '''
+    lineThreshold = 64
+    csize = 10
+    maxIter = 999
+    '''
+
     latkml004_lineThreshold: FloatProperty(
         name="lineThreshold",
         description="...",
         default=32.0 # 64
-    )
-
-    latkml004_distThreshold: FloatProperty(
-        name="distThreshold",
-        description="...",
-        default=0.5
     )
 
     latkml004_csize: IntProperty(
@@ -106,6 +106,12 @@ class latkml004Properties(bpy.types.PropertyGroup):
         name="iter",
         description="...",
         default=999
+    )
+
+    latkml004_distThreshold: FloatProperty(
+        name="distThreshold",
+        description="...",
+        default=0.5
     )
 
     latkml004_thickness: FloatProperty(
@@ -217,9 +223,8 @@ if __name__ == "__main__":
     register()
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
+'''
 def npToCv(img):
-    img = img.astype(np.float32)
     return cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
 def cvToNp(img):
@@ -232,13 +237,11 @@ def cvToBlender(img):
     blender_image.pixels.foreach_set(pixels)
     blender_image.update()
     return blender_image
+'''
 
 def renderFrame(_format="PNG"):
-    width = bpy.context.scene.render.resolution_x
-    height = bpy.context.scene.render.resolution_y
     output_path = os.path.join(bpy.app.tempdir, "render.png")
     bpy.context.scene.render.filepath = output_path
-
     oldFormat = bpy.context.scene.render.image_settings.file_format
     bpy.context.scene.render.image_settings.file_format = _format
     bpy.ops.render.render(write_still=True)
@@ -252,13 +255,15 @@ def renderToCv():
 
 def renderToNp():
     renderFrame()
+    width = bpy.context.scene.render.resolution_x
+    height = bpy.context.scene.render.resolution_y
     image_path = bpy.context.scene.render.filepath
     image = bpy.data.images.load(image_path)
     image_array = np.array(image.pixels[:])
     image_array = image_array.reshape((height, width, 4))
     image_array = np.flipud(image_array)
     image_array = image_array[:, :, :3]
-    return image_array
+    return image_array.astype(np.float32)
 
 def remap(value, min1, max1, min2, max2):
     '''
@@ -294,17 +299,11 @@ def loadModel():
 def doInference(onnx):
     latkml004 = bpy.context.scene.latkml004_settings
 
-    img_cv = renderToCv()
-    result = onnx.detect(img_cv)
+    img_np = renderToNp()
+    result = onnx.detect(img_np)
     
     outputUrl = os.path.join(bpy.app.tempdir, "output.png")
     cv2.imwrite(outputUrl, result)
-
-    '''
-    lineThreshold = 64
-    csize = 10
-    '''
-    maxIter = 999
 
     im0 = cv2.imread(outputUrl)
     im0 = cv2.bitwise_not(im0) # invert
@@ -345,7 +344,7 @@ def doInference(onnx):
                 newStroke = []
                 newStrokeColor = []
                 for point in stroke:
-                    rgbPixel = img_cv[point[1]][point[0]]
+                    rgbPixel = img_np[point[1]][point[0]]
                     rgbPixel2 = (rgbPixel[2], rgbPixel[1], rgbPixel[0], 1)
 
                     xPos = remap(point[0], 0, resolutionX, xRange.min(), xRange.max())
@@ -469,7 +468,7 @@ class Pix2pix():
         input_image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         input_image = input_image.transpose(2, 0, 1)
         input_image = np.expand_dims(input_image, axis=0)
-        input_image = input_image / 255.0
+        #input_image = input_image / 255.0
         input_image = (input_image - 0.5) / 0.5 
         input_image = input_image.astype('float32')
         print(input_image.shape)
