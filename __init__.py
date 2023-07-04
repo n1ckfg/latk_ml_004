@@ -74,25 +74,16 @@ class latkml004Properties(bpy.types.PropertyGroup):
     bl_idname = "GREASE_PENCIL_PT_latkml004Properties"
 
     latkml004_ModelStyle: EnumProperty(
-        name="Style",
+        name="ONNX",
         items=(
-            ("ANIME", "Anime Style", "...", 0),
-            ("CONTOUR", "Contour Style", "...", 1),
-            ("OPENSKETCH", "OpenSketch Style", "...", 2),
-            ("EXPERIMENTAL", "Experimental", "...", 3)
+            ("ANIME", "Anime", "...", 0),
+            ("CONTOUR", "Contour", "...", 1),
+            ("OPENSKETCH", "OpenSketch", "...", 2),
+            ("PIX2PIX004", "Pix2Pix 004", "...", 3)
         ),
         default="ANIME"
     )
     
-    latkml004_ModelType: EnumProperty(
-        name="Type",
-        items=(
-            ("INFORMATIVE_DRAWINGS", "informative-drawings", "...", 0),
-            ("PIX2PIX", "pix2pix", "...", 1)
-        ),
-        default="INFORMATIVE_DRAWINGS"
-    )
-
     latkml004_lineThreshold: FloatProperty(
         name="lineThreshold",
         description="...",
@@ -191,9 +182,6 @@ class latkml004Properties_Panel(bpy.types.Panel):
         row.prop(latkml004, "latkml004_ModelStyle")
 
         row = layout.row()
-        row.prop(latkml004, "latkml004_ModelType")
-
-        row = layout.row()
         row.prop(latkml004, "latkml004_lineThreshold")
 
         row = layout.row()
@@ -281,27 +269,25 @@ def remap(value, min1, max1, min2, max2):
     '''
     return np.interp(value,[min1, max1],[min2, max2])
 
+def getModelPath(name):
+	return os.path.join(findAddonPath(), os.path.join("onnx", name))
+
 def loadModel():
     latkml004 = bpy.context.scene.latkml004_settings
 
     animeModel = "anime_style_512x512.onnx"
     contourModel = "contour_style_512x512.onnx"
     opensketchModel = "opensketch_style_512x512.onnx"
-    experimentalModel = "latest_net_G.onnx"
-    
-    whichModel = animeModel
+    pix2pix004Model = "latest_net_G.onnx"   
 
     if (latkml004.latkml004_ModelStyle.lower() == "contour"):
-        whichModel = contourModel
+        return Informative_Drawings(getModelPath(contourModel))
     elif (latkml004.latkml004_ModelStyle.lower() == "opensketch"):
-        whichModel = opensketchModel
-    elif (latkml004.latkml004_ModelStyle.lower() == "experimental"):
-        whichModel = experimentalModel
-
-    if (latkml004.latkml004_ModelType.lower() == "pix2pix"):
-        return Pix2pix(os.path.join(findAddonPath(), os.path.join("onnx", whichModel)))
+        return Informative_Drawings(getModelPath(opensketchModel))
+    elif (latkml004.latkml004_ModelStyle.lower() == "pix2pix004"):
+        return Pix2pix(getModelPath(pix2pix004Model))
     else:
-        return Informative_Drawings(os.path.join(findAddonPath(), os.path.join("onnx", whichModel)))
+        return Informative_Drawings(getModelPath(animeModel))
 
 # https://blender.stackexchange.com/questions/262742/python-bpy-2-8-render-directly-to-matrix-array
 # https://blender.stackexchange.com/questions/2170/how-to-access-render-result-pixels-from-python-script/3054#3054
