@@ -74,14 +74,23 @@ class latkml004Properties(bpy.types.PropertyGroup):
     bl_idname = "GREASE_PENCIL_PT_latkml004Properties"
 
     latkml004_ModelStyle: EnumProperty(
-        name="ONNX",
+        name="Style",
         items=(
             ("ANIME", "Anime Style", "...", 0),
             ("CONTOUR", "Contour Style", "...", 1),
             ("OPENSKETCH", "OpenSketch Style", "...", 2),
-            ("EXPERIMENTAL", "Experimental Model", "...", 3)
+            ("EXPERIMENTAL", "Experimental", "...", 3)
         ),
         default="ANIME"
+    )
+    
+    latkml004_ModelType: EnumProperty(
+        name="Type",
+        items=(
+            ("INFORMATIVE_DRAWINGS", "informative-drawings", "...", 0),
+            ("PIX2PIX", "pix2pix", "...", 1)
+        ),
+        default="INFORMATIVE_DRAWINGS"
     )
 
     latkml004_lineThreshold: FloatProperty(
@@ -180,6 +189,9 @@ class latkml004Properties_Panel(bpy.types.Panel):
 
         row = layout.row()
         row.prop(latkml004, "latkml004_ModelStyle")
+
+        row = layout.row()
+        row.prop(latkml004, "latkml004_ModelType")
 
         row = layout.row()
         row.prop(latkml004, "latkml004_lineThreshold")
@@ -286,7 +298,10 @@ def loadModel():
     elif (latkml004.latkml004_ModelStyle.lower() == "experimental"):
         whichModel = experimentalModel
 
-    return Informative_Drawings(os.path.join(findAddonPath(), os.path.join("onnx", whichModel)))
+    if (latkml004.latkml004_ModelType.lower() == "pix2pix"):
+        return Pix2pix(os.path.join(findAddonPath(), os.path.join("onnx", whichModel)))
+    else:
+        return Informative_Drawings(os.path.join(findAddonPath(), os.path.join("onnx", whichModel)))
 
 # https://blender.stackexchange.com/questions/262742/python-bpy-2-8-render-directly-to-matrix-array
 # https://blender.stackexchange.com/questions/2170/how-to-access-render-result-pixels-from-python-script/3054#3054
@@ -447,6 +462,40 @@ class Informative_Drawings():
         result *= 255
         result = cv2.resize(result.astype('uint8'), (srcimg.shape[1], srcimg.shape[0]))
         return result
+
+# https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/1113
+class Pix2pix():
+    def __init__(self, onnx_file):
+        self.net = onnxruntime.InferenceSession(onnx_file)
+        self.input_size = 256
+        self.input_name = self.net.get_inputs()[0].name
+        self.output_name = self.net.get_outputs()[0].name
+        print("input_name = " + self.input_name)
+        print("output_name = " + self.output_name)
+
+    def detect(self, image):
+        if isinstance(image, str):
+            image=cv2.imdecode(np.fromfile(image, dtype=np.uint8), -1)
+        elif isinstance(image, np.ndarray):
+            image=image.copy()
+        # image=image[0:256, 0:256]
+        img = cv2.resize(image, (self.input_size, self.input_size))
+        input_image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        input_image = input_image.transpose(2, 0, 1)
+        input_image = np.expand_dims(input_image, axis=0)
+        input_image = input_image / 255.0
+        input_image = (input_image - 0.5) / 0.5 
+        input_image = input_image.astype('float32')
+        print(input_image.shape)
+        # x = x[None,:,:,:]
+        outs = self.net.run(None, {self.input_name: input_image})[0].squeeze(axis=0)
+        outs = np.clip(((outs*0.5+0.5) * 255), 0, 255).astype(np.uint8) 
+        outs = outs.transpose(1, 2, 0).astype('uint8')
+        outs = cv2.cvtColor(outs, cv2.COLOR_RGB2BGR)
+        outs=np.hstack((img, outs))
+        print("outs",outs.shape)
+        # return cv2.resize(outs, (image.shape[1], image.shape[0]))
+        return outs
 
 '''
 if __name__ == '__main__':
