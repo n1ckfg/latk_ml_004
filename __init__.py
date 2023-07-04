@@ -79,7 +79,10 @@ class latkml004Properties(bpy.types.PropertyGroup):
             ("ANIME", "Anime", "...", 0),
             ("CONTOUR", "Contour", "...", 1),
             ("OPENSKETCH", "OpenSketch", "...", 2),
-            ("PIX2PIX004", "Pix2Pix 004", "...", 3)
+            ("PIX2PIX001", "Pix2Pix 001", "...", 3),
+            ("PIX2PIX002", "Pix2Pix 002", "...", 4),
+            ("PIX2PIX003", "Pix2Pix 003", "...", 5),
+            ("PIX2PIX004", "Pix2Pix 004", "...", 6)
         ),
         default="ANIME"
     )
@@ -283,12 +286,21 @@ def loadModel():
     animeModel = "anime_style_512x512.onnx"
     contourModel = "contour_style_512x512.onnx"
     opensketchModel = "opensketch_style_512x512.onnx"
-    pix2pix004Model = "latest_net_G.onnx"   
+    pix2pix001Model = "pix2pix001_140_net_G.onnx"   
+    pix2pix002Model = "pix2pix002_140_net_G.onnx"   
+    pix2pix003Model = "pix2pix003_140_net_G.onnx"   
+    pix2pix004Model = "pix2pix004_140_net_G.onnx"   
 
     if (latkml004.latkml004_ModelStyle.lower() == "contour"):
         return Informative_Drawings(getModelPath(contourModel))
     elif (latkml004.latkml004_ModelStyle.lower() == "opensketch"):
         return Informative_Drawings(getModelPath(opensketchModel))
+    elif (latkml004.latkml004_ModelStyle.lower() == "pix2pix001"):
+        return Pix2pix(getModelPath(pix2pix001Model))
+    elif (latkml004.latkml004_ModelStyle.lower() == "pix2pix002"):
+        return Pix2pix(getModelPath(pix2pix002Model))
+    elif (latkml004.latkml004_ModelStyle.lower() == "pix2pix003"):
+        return Pix2pix(getModelPath(pix2pix003Model))
     elif (latkml004.latkml004_ModelStyle.lower() == "pix2pix004"):
         return Pix2pix(getModelPath(pix2pix004Model))
     else:
