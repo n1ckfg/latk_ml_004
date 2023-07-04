@@ -79,7 +79,7 @@ class latkml004Properties(bpy.types.PropertyGroup):
             ("ANIME", "Anime Style", "...", 0),
             ("CONTOUR", "Contour Style", "...", 1),
             ("OPENSKETCH", "OpenSketch Style", "...", 2),
-            ("EXPERIMENTAL", "Experimental Model", "...", 2),
+            ("EXPERIMENTAL", "Experimental Model", "...", 3)
         ),
         default="ANIME"
     )
@@ -130,7 +130,7 @@ class latkml004_Button_AllFrames(bpy.types.Operator):
         start, end = lb.getStartEnd()
         for i in range(start, end):
             lb.goToFrame(i)
-            laFrame = renderFrame(onnx)
+            laFrame = doInference(onnx)
             la.layers[0].frames.append(laFrame)
 
         lb.fromLatkToGp(la, resizeTimeline=False)
@@ -149,7 +149,7 @@ class latkml004_Button_SingleFrame(bpy.types.Operator):
 
         la = latk.Latk()
         la.layers.append(latk.LatkLayer())
-        laFrame = renderFrame(onnx)
+        laFrame = doInference(onnx)
         la.layers[0].frames.append(laFrame)
         
         lb.fromLatkToGp(la, resizeTimeline=False)
@@ -233,17 +233,25 @@ def cvToBlender(img):
     blender_image.update()
     return blender_image
 
-def renderToNp():
+def renderFrame(_format="PNG"):
     width = bpy.context.scene.render.resolution_x
     height = bpy.context.scene.render.resolution_y
     output_path = os.path.join(bpy.app.tempdir, "render.png")
     bpy.context.scene.render.filepath = output_path
 
     oldFormat = bpy.context.scene.render.image_settings.file_format
-    bpy.context.scene.render.image_settings.file_format = "PNG"
+    bpy.context.scene.render.image_settings.file_format = _format
     bpy.ops.render.render(write_still=True)
     bpy.context.scene.render.image_settings.file_format = oldFormat
 
+def renderToCv():
+    renderFrame()
+    image_path = bpy.context.scene.render.filepath
+    image = cv2.imread(image_path)
+    return image
+
+def renderToNp():
+    renderFrame()
     image_path = bpy.context.scene.render.filepath
     image = bpy.data.images.load(image_path)
     image_array = np.array(image.pixels[:])
@@ -267,7 +275,7 @@ def loadModel():
     animeModel = "anime_style_512x512.onnx"
     contourModel = "contour_style_512x512.onnx"
     opensketchModel = "opensketch_style_512x512.onnx"
-    experimentalModel = "opensketch_style_512x512.onnx"
+    experimentalModel = "latest_net_G.onnx"
     
     whichModel = animeModel
 
@@ -282,11 +290,10 @@ def loadModel():
 
 # https://blender.stackexchange.com/questions/262742/python-bpy-2-8-render-directly-to-matrix-array
 # https://blender.stackexchange.com/questions/2170/how-to-access-render-result-pixels-from-python-script/3054#3054
-def renderFrame(onnx):
+def doInference(onnx):
     latkml004 = bpy.context.scene.latkml004_settings
 
-    img_np = renderToNp()
-    img_cv = npToCv(img_np)
+    img_cv = renderToCv()
     result = onnx.detect(img_cv)
     
     outputUrl = os.path.join(bpy.app.tempdir, "output.png")
