@@ -79,6 +79,7 @@ class latkml004Properties(bpy.types.PropertyGroup):
             ("ANIME", "Anime Style", "...", 0),
             ("CONTOUR", "Contour Style", "...", 1),
             ("OPENSKETCH", "OpenSketch Style", "...", 2),
+            ("EXPERIMENTAL", "Experimental Model", "...", 2),
         ),
         default="ANIME"
     )
@@ -266,6 +267,7 @@ def loadModel():
     animeModel = "anime_style_512x512.onnx"
     contourModel = "contour_style_512x512.onnx"
     opensketchModel = "opensketch_style_512x512.onnx"
+    experimentalModel = "opensketch_style_512x512.onnx"
     
     whichModel = animeModel
 
@@ -273,6 +275,9 @@ def loadModel():
         whichModel = contourModel
     elif (latkml004.latkml004_ModelStyle.lower() == "opensketch"):
         whichModel = opensketchModel
+    elif (latkml004.latkml004_ModelStyle.lower() == "experimental"):
+        whichModel = experimentalModel
+
     return Informative_Drawings(os.path.join(findAddonPath(), os.path.join("onnx", whichModel)))
 
 # https://blender.stackexchange.com/questions/262742/python-bpy-2-8-render-directly-to-matrix-array
