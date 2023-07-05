@@ -226,7 +226,6 @@ if __name__ == "__main__":
     register()
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-'''
 def npToCv(img):
     return cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
@@ -240,7 +239,6 @@ def cvToBlender(img):
     blender_image.pixels.foreach_set(pixels)
     blender_image.update()
     return blender_image
-'''
 
 def renderFrame(_format="PNG"):
     output_path = os.path.join(bpy.app.tempdir, "render.png")
@@ -312,6 +310,7 @@ def doInference(onnx):
     latkml004 = bpy.context.scene.latkml004_settings
 
     img_np = renderToNp()
+    img_cv = npToCv(img_np)
     result = onnx.detect(img_np)
     
     outputUrl = os.path.join(bpy.app.tempdir, "output.png")
@@ -356,7 +355,7 @@ def doInference(onnx):
                 newStroke = []
                 newStrokeColor = []
                 for point in stroke:
-                    rgbPixel = img_np[point[1]][point[0]]
+                    rgbPixel = img_cv[point[1]][point[0]]
                     rgbPixel2 = (rgbPixel[2], rgbPixel[1], rgbPixel[0], 1)
 
                     xPos = remap(point[0], 0, resolutionX, xRange.min(), xRange.max())
