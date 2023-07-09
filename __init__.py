@@ -81,8 +81,7 @@ class latkml004Properties(bpy.types.PropertyGroup):
             ("OPENSKETCH", "OpenSketch", "...", 2),
             ("PIX2PIX001", "Pix2Pix 001", "...", 3),
             ("PIX2PIX002", "Pix2Pix 002", "...", 4),
-            ("PIX2PIX003", "Pix2Pix 003", "...", 5),
-            ("PIX2PIX004", "Pix2Pix 004", "...", 6)
+            ("PIX2PIX003", "Pix2Pix 003", "...", 5)
         ),
         default="ANIME"
     )
@@ -303,10 +302,9 @@ def modelSelector(modelName):
     animeModel = "anime_style_512x512.onnx"
     contourModel = "contour_style_512x512.onnx"
     opensketchModel = "opensketch_style_512x512.onnx"
-    pix2pix001Model = "pix2pix002_140_net_G.onnx"   
-    pix2pix002Model = "new_pix2pix002_140_net_G_simplified.onnx"   
-    pix2pix003Model = "neuralcontours_200_net_G_simplified.onnx"   
-    pix2pix004Model = "pix2pix004_140_net_G.onnx"   
+    pix2pix001Model = "pix2pix004-002_140_net_G_simplified.onnx"   
+    pix2pix002Model = "pix2pix003-002_140_net_G_simplified.onnx"   
+    pix2pix003Model = "neuralcontours_140_net_G_simplified.onnx"   
 
     if (modelName == "anime"):
         return Informative_Drawings(getModelPath(animeModel))
@@ -320,8 +318,6 @@ def modelSelector(modelName):
         return Pix2pix(getModelPath(pix2pix002Model))
     elif (modelName == "pix2pix003"):
         return Pix2pix(getModelPath(pix2pix003Model))
-    elif (modelName == "pix2pix004"):
-        return Pix2pix(getModelPath(pix2pix004Model))
     else:
         return None
 
