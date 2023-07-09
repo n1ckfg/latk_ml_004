@@ -305,7 +305,7 @@ def modelSelector(modelName):
     opensketchModel = "opensketch_style_512x512.onnx"
     pix2pix001Model = "pix2pix002_140_net_G.onnx"   
     pix2pix002Model = "new_pix2pix002_140_net_G_simplified.onnx"   
-    pix2pix003Model = "pix2pix003_140_net_G.onnx"   
+    pix2pix003Model = "neuralcontours_200_net_G_simplified.onnx"   
     pix2pix004Model = "pix2pix004_140_net_G.onnx"   
 
     if (modelName == "anime"):
@@ -457,12 +457,15 @@ def setThickness(thickness):
 
 class Informative_Drawings():
     def __init__(self, modelpath):
+        ''''
         try:
             cv_net = cv2.dnn.readNet(modelpath)
         except:
             print('opencv read onnx failed!!!')
+        '''
         so = onnxruntime.SessionOptions()
         so.log_severity_level = 3
+        so.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
         #self.net = onnxruntime.InferenceSession(modelpath, so, providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
         self.net = onnxruntime.InferenceSession(modelpath, so)
         input_shape = self.net.get_inputs()[0].shape
@@ -484,8 +487,12 @@ class Informative_Drawings():
 
 # https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/1113
 class Pix2pix():
-    def __init__(self, onnx_file):
-        self.net = onnxruntime.InferenceSession(onnx_file)
+    def __init__(self, modelpath):
+        so = onnxruntime.SessionOptions()
+        so.log_severity_level = 3
+        so.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
+        #self.net = onnxruntime.InferenceSession(modelpath, so, providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
+        self.net = onnxruntime.InferenceSession(modelpath, so)
         self.input_size = 256
         self.input_name = self.net.get_inputs()[0].name
         self.output_name = self.net.get_outputs()[0].name
