@@ -73,6 +73,17 @@ class latkml004Properties(bpy.types.PropertyGroup):
     """Properties for latkml004"""
     bl_idname = "GREASE_PENCIL_PT_latkml004Properties"
 
+    '''
+    latkml004_Backend: EnumProperty(
+        name="Backend",
+        items=(
+            ("CPU", "CPU", "...", 0),
+            ("CUDA", "CUDA", "...", 1)
+        ),
+        default="CPU"
+    )
+    '''
+
     latkml004_ModelStyle1: EnumProperty(
         name="ONNX1",
         items=(
@@ -105,13 +116,13 @@ class latkml004Properties(bpy.types.PropertyGroup):
     latkml004_lineThreshold: FloatProperty(
         name="lineThreshold",
         description="...",
-        default=32.0 # 64
+        default=16.0 #32 #64
     )
 
     latkml004_csize: IntProperty(
         name="csize",
         description="...",
-        default=10
+        default=3 #10
     )
 
     latkml004_maxIter: IntProperty(
@@ -123,7 +134,7 @@ class latkml004Properties(bpy.types.PropertyGroup):
     latkml004_distThreshold: FloatProperty(
         name="distThreshold",
         description="...",
-        default=0.5
+        default=0.1 #0.5
     )
 
     latkml004_thickness: FloatProperty(
@@ -214,6 +225,9 @@ class latkml004Properties_Panel(bpy.types.Panel):
 
         row = layout.row()
         row.prop(latkml004, "latkml004_thickness")
+
+        #row = layout.row()
+        #row.prop(latkml004, "latkml004_Backend")
 
 classes = (
     OBJECT_OT_latkml004_prefs,
@@ -453,6 +467,7 @@ def setThickness(thickness):
 
 class Informative_Drawings():
     def __init__(self, modelpath):
+        #latkml004 = bpy.context.scene.latkml004_settings    
         ''''
         try:
             cv_net = cv2.dnn.readNet(modelpath)
@@ -462,8 +477,12 @@ class Informative_Drawings():
         so = onnxruntime.SessionOptions()
         so.log_severity_level = 3
         so.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
-        #self.net = onnxruntime.InferenceSession(modelpath, so, providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
-        self.net = onnxruntime.InferenceSession(modelpath, so)
+        
+        #if (latkml004.latkml004_Backend.lower() == "cuda"):
+        self.net = onnxruntime.InferenceSession(modelpath, so, providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
+        #else:
+            #self.net = onnxruntime.InferenceSession(modelpath, so)
+        
         input_shape = self.net.get_inputs()[0].shape
         self.input_height = int(input_shape[2])
         self.input_width = int(input_shape[3])
@@ -484,11 +503,17 @@ class Informative_Drawings():
 # https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/1113
 class Pix2pix():
     def __init__(self, modelpath):
+        #latkml004 = bpy.context.scene.latkml004_settings
+
         so = onnxruntime.SessionOptions()
         so.log_severity_level = 3
         so.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
-        #self.net = onnxruntime.InferenceSession(modelpath, so, providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
-        self.net = onnxruntime.InferenceSession(modelpath, so)
+
+        #if (latkml004.latkml004_Backend.lower() == "cuda"):
+        self.net = onnxruntime.InferenceSession(modelpath, so, providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
+        #else:
+            #self.net = onnxruntime.InferenceSession(modelpath, so)
+
         self.input_size = 256
         self.input_name = self.net.get_inputs()[0].name
         self.output_name = self.net.get_outputs()[0].name
