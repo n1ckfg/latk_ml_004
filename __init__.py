@@ -73,8 +73,8 @@ class latkml004Properties(bpy.types.PropertyGroup):
     """Properties for latkml004"""
     bl_idname = "GREASE_PENCIL_PT_latkml004Properties"
 
-    latkml004_ModelStyle: EnumProperty(
-        name="ONNX",
+    latkml004_ModelStyle1: EnumProperty(
+        name="ONNX1",
         items=(
             ("ANIME", "Anime", "...", 0),
             ("CONTOUR", "Contour", "...", 1),
@@ -86,7 +86,17 @@ class latkml004Properties(bpy.types.PropertyGroup):
         ),
         default="ANIME"
     )
-    
+
+    latkml004_ModelStyle2: EnumProperty(
+        name="ONNX2",
+        items=(
+            ("NONE", "None", "...", 0),
+            ("ANIME", "Anime", "...", 1),
+            ("CONTOUR", "Contour", "...", 2),
+            ("OPENSKETCH", "OpenSketch", "...", 3)
+        ),
+        default="NONE"
+    )    
     '''
     lineThreshold = 64
     csize = 10
@@ -131,7 +141,7 @@ class latkml004_Button_AllFrames(bpy.types.Operator):
     
     def execute(self, context):
         latkml004 = context.scene.latkml004_settings
-        onnx = loadModel()
+        onnx1, onnx2 = loadModel()
 
         la = latk.Latk()
         la.layers.append(latk.LatkLayer())
@@ -139,7 +149,7 @@ class latkml004_Button_AllFrames(bpy.types.Operator):
         start, end = lb.getStartEnd()
         for i in range(start, end):
             lb.goToFrame(i)
-            laFrame = doInference(onnx)
+            laFrame = doInference(onnx1, onnx2)
             la.layers[0].frames.append(laFrame)
 
         lb.fromLatkToGp(la, resizeTimeline=False)
@@ -154,11 +164,11 @@ class latkml004_Button_SingleFrame(bpy.types.Operator):
     
     def execute(self, context):
         latkml004 = context.scene.latkml004_settings
-        onnx = loadModel()
+        onnx1, onnx2 = loadModel()
 
         la = latk.Latk()
         la.layers.append(latk.LatkLayer())
-        laFrame = doInference(onnx)
+        laFrame = doInference(onnx1, onnx2)
         la.layers[0].frames.append(laFrame)
         
         lb.fromLatkToGp(la, resizeTimeline=False)
@@ -188,7 +198,10 @@ class latkml004Properties_Panel(bpy.types.Panel):
         row.operator("latkml004_button.allframes")
 
         row = layout.row()
-        row.prop(latkml004, "latkml004_ModelStyle")
+        row.prop(latkml004, "latkml004_ModelStyle1")
+
+        row = layout.row()
+        row.prop(latkml004, "latkml004_ModelStyle2")
 
         row = layout.row()
         row.prop(latkml004, "latkml004_lineThreshold")
@@ -276,43 +289,53 @@ def remap(value, min1, max1, min2, max2):
     return np.interp(value,[min1, max1],[min2, max2])
 
 def getModelPath(name):
-	return os.path.join(findAddonPath(), os.path.join("onnx", name))
+    return os.path.join(findAddonPath(), os.path.join("onnx", name))
 
 def loadModel():
     latkml004 = bpy.context.scene.latkml004_settings
+   
+    returns1 = modelSelector(latkml004.latkml004_ModelStyle1.lower())
+    returns2 = modelSelector(latkml004.latkml004_ModelStyle2.lower())
 
+    return returns1, returns2
+
+def modelSelector(modelName):
     animeModel = "anime_style_512x512.onnx"
     contourModel = "contour_style_512x512.onnx"
     opensketchModel = "opensketch_style_512x512.onnx"
-    pix2pix001Model = "pix2pix001_140_net_G.onnx"   
-    pix2pix002Model = "pix2pix002_140_net_G.onnx"   
+    pix2pix001Model = "pix2pix002_140_net_G.onnx"   
+    pix2pix002Model = "new_pix2pix002_140_net_G_simplified.onnx"   
     pix2pix003Model = "pix2pix003_140_net_G.onnx"   
     pix2pix004Model = "pix2pix004_140_net_G.onnx"   
 
-    if (latkml004.latkml004_ModelStyle.lower() == "contour"):
+    if (modelName == "anime"):
+        return Informative_Drawings(getModelPath(animeModel))
+    elif (modelName == "contour"):
         return Informative_Drawings(getModelPath(contourModel))
-    elif (latkml004.latkml004_ModelStyle.lower() == "opensketch"):
+    elif (modelName == "opensketch"):
         return Informative_Drawings(getModelPath(opensketchModel))
-    elif (latkml004.latkml004_ModelStyle.lower() == "pix2pix001"):
+    elif (modelName == "pix2pix001"):
         return Pix2pix(getModelPath(pix2pix001Model))
-    elif (latkml004.latkml004_ModelStyle.lower() == "pix2pix002"):
+    elif (modelName == "pix2pix002"):
         return Pix2pix(getModelPath(pix2pix002Model))
-    elif (latkml004.latkml004_ModelStyle.lower() == "pix2pix003"):
+    elif (modelName == "pix2pix003"):
         return Pix2pix(getModelPath(pix2pix003Model))
-    elif (latkml004.latkml004_ModelStyle.lower() == "pix2pix004"):
+    elif (modelName == "pix2pix004"):
         return Pix2pix(getModelPath(pix2pix004Model))
     else:
-        return Informative_Drawings(getModelPath(animeModel))
+        return None
 
 # https://blender.stackexchange.com/questions/262742/python-bpy-2-8-render-directly-to-matrix-array
 # https://blender.stackexchange.com/questions/2170/how-to-access-render-result-pixels-from-python-script/3054#3054
-def doInference(onnx):
+def doInference(onnx1, onnx2=None):
     latkml004 = bpy.context.scene.latkml004_settings
 
     img_np = renderToNp()
     img_cv = npToCv(img_np)
-    result = onnx.detect(img_np)
-    
+    result = onnx1.detect(img_np)
+    if (onnx2 != None):
+        result = onnx2.detect(result)
+
     outputUrl = os.path.join(bpy.app.tempdir, "output.png")
     cv2.imwrite(outputUrl, result)
 
