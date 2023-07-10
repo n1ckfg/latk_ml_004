@@ -408,11 +408,11 @@ def modelSelector(modelName):
     latkml004 = bpy.context.scene.latkml004_settings
     if (latkml004.latkml004_Backend.lower() == "pytorch"):
         if (modelName == "anime"):
-            return Informative_Drawings_PyTorch("checkpoints/anime_style.pth")
+            return Informative_Drawings_PyTorch("checkpoints/anime_style/netG_A_latest.pth")
         elif (modelName == "contour"):
-            return Informative_Drawings_PyTorch("checkpoints/contour_style.pth")
+            return Informative_Drawings_PyTorch("checkpoints/contour_style/netG_A_latest.pth")
         elif (modelName == "opensketch"):
-            return Informative_Drawings_PyTorch("checkpoints/opensketch_style.pth")
+            return Informative_Drawings_PyTorch("checkpoints/opensketch_style/netG_A_latest.pth")
         elif (modelName == "pxp_001"):
             return Pix2Pix_PyTorch("checkpoints/pix2pix004-002_140_net_G.pth")
         elif (modelName == "pxp_002"):
