@@ -575,7 +575,7 @@ class Pix2Pix_Onnx():
         outs = np.clip(((outs*0.5+0.5) * 255), 0, 255).astype(np.uint8) 
         outs = outs.transpose(1, 2, 0).astype('uint8')
         outs = cv2.cvtColor(outs, cv2.COLOR_RGB2BGR)
-        outs=np.hstack((img, outs))
+        outs = np.hstack((img, outs))
         print("outs",outs.shape)
         
         # [y:y+height, x:x+width]
@@ -651,33 +651,18 @@ class Informative_Drawings_PyTorch():
         self.netGeom = 0        
 
     def detect(self, srcimg):
-        with torch.no_grad():   
-            srcimg2 = cv2.resize(srcimg, (256, 256))
-            srcimg3 = np.transpose(srcimg2, (2, 0, 1))
-            tensor_array = torch.from_numpy(srcimg3)
-            input_image = tensor_array.to(self.device)
-            output_image = self.net_G(input_image)
-            return output_image
-            '''
-            transforms_r = [transforms.Resize(int(opt.size), Image.BICUBIC), transforms.ToTensor()]
+        with torch.no_grad():              
+            srcimg2 = np.transpose(srcimg, (2, 0, 1))
 
-            test_data = UnpairedDepthDataset(opt.dataroot, '', opt, transforms_r=transforms_r, mode=opt.mode, midas=opt.midas>0, depthroot=opt.depthroot)
+            tensor_array = torch.from_numpy(srcimg2)
+            input_tensor = tensor_array.to(self.device)
+            output_tensor = self.net_G(input_tensor)
 
-            dataloader = DataLoader(test_data, batch_size=opt.batchSize, shuffle=False)
-
-            for i, batch in enumerate(dataloader):
-                if i > opt.how_many:
-                    break;
-                img_r  = Variable(batch['r']).to(device)
-                img_depth  = Variable(batch['depth']).to(device)
-                real_A = img_r
-
-                name = batch['name'][0]
-                
-                input_image = real_A
-                image = net_G(input_image)
-                return image
-            '''
+            result = output_tensor.detach().cpu().numpy().transpose(1, 2, 0)
+            result *= 255
+            result = cv2.resize(result, (srcimg.shape[1], srcimg.shape[0]))
+            
+            return result
 
 class Pix2Pix_PyTorch():
     def __init__(self, modelPath):
