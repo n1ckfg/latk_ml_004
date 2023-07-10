@@ -370,7 +370,7 @@ def setupDepthPass(url="/my_path/"):
 def renderToCv(depthPass=False):
     image_path = renderFrame(depthPass)
     image = cv2.imread(image_path)
-    return image
+    return cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
 def renderToNp(depthPass=False):
     image_path = renderFrame(depthPass)
@@ -446,7 +446,8 @@ def doInference(net1, net2=None):
     img_cv = None
     if (latkml004.latkml004_SourceImage.lower() == "depth"):
         img_np = renderToNp(depthPass=True) # inference expects np array
-        img_cv = renderToCv(depthPass=False) # cv converted image used for color pixels later
+        img_temp = renderToNp()
+        img_cv = npToCv(img_temp) # cv converted image used for color pixels later
     else:
         img_np = renderToNp() # inference expects np array
         img_cv = npToCv(img_np) # cv converted image used for color pixels later
