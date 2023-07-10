@@ -26,6 +26,19 @@ import latk_blender as lb
 from skimage.morphology import skeletonize
 from mathutils import Vector, Quaternion
 
+import argparse
+import sys
+import os
+
+import torchvision.transforms as transforms
+from torchvision.utils import save_image
+from torch.utils.data import DataLoader
+from torch.autograd import Variable
+import torch
+
+from PIL import Image
+import numpy as np
+
 def findAddonPath(name=None):
     if not name:
         name = __name__
@@ -34,6 +47,11 @@ def findAddonPath(name=None):
             url = mod.__file__
             return os.path.dirname(url)
     return None
+
+sys.path.append(os.path.join(findAddonPath(), "informative-drawings"))
+from model import Generator, GlobalGenerator2, InceptionV3
+from dataset import UnpairedDepthDataset
+from utils import channel2width
 
 sys.path.append(os.path.join(findAddonPath(), "skeleton-tracing/swig"))
 from trace_skeleton import *
@@ -97,9 +115,9 @@ class latkml004Properties(bpy.types.PropertyGroup):
             ("ANIME", "Anime", "...", 0),
             ("CONTOUR", "Contour", "...", 1),
             ("OPENSKETCH", "OpenSketch", "...", 2),
-            ("PIX2PIX001", "Pix2Pix 001", "...", 3),
-            ("PIX2PIX002", "Pix2Pix 002", "...", 4),
-            ("PIX2PIX003", "Pix2Pix 003", "...", 5)
+            ("PIX2PIX001", "PxP 001", "...", 3),
+            ("PIX2PIX002", "PxP 002", "...", 4),
+            ("PIX2PIX003", "PxP NeuralContours", "...", 5)
         ),
         default="ANIME"
     )
@@ -311,8 +329,8 @@ def remap(value, min1, max1, min2, max2):
     '''
     return np.interp(value,[min1, max1],[min2, max2])
 
-def getModelPath(name, ext="onnx"):
-    return os.path.join(findAddonPath(), os.path.join(ext, name))
+def getModelPath(url):
+    return os.path.join(findAddonPath(), url)
 
 def loadModel():
     latkml004 = bpy.context.scene.latkml004_settings
@@ -325,49 +343,33 @@ def loadModel():
 def modelSelector(modelName):
     latkml004 = bpy.context.scene.latkml004_settings
     if (latkml004.latkml004_Backend.lower() == "pytorch"):
-        animeModel = "anime_style_512x512.pth"
-        contourModel = "contour_style_512x512.pth"
-        opensketchModel = "opensketch_style_512x512.pth"
-        pix2pix001Model = "pix2pix004-002_140_net_G_simplified.pth"   
-        pix2pix002Model = "pix2pix003-002_140_net_G_simplified.pth"   
-        pix2pix003Model = "neuralcontours_140_net_G_simplified.pth"   
-
-        ext="pth"
-
         if (modelName == "anime"):
-            return Informative_Drawings_PyTorch(getModelPath(animeModel, ext=ext))
+            return Informative_Drawings_PyTorch("checkpoints/anime_style/netG_A_latest.pth")
         elif (modelName == "contour"):
-            return Informative_Drawings_PyTorch(getModelPath(contourModel, ext=ext))
+            return Informative_Drawings_PyTorch("checkpoints/contour_style/netG_A_latest.pth")
         elif (modelName == "opensketch"):
-            return Informative_Drawings_PyTorch(getModelPath(opensketchModel, ext=ext))
+            return Informative_Drawings_PyTorch("checkpoints/opensketch_style/netG_A_latest.pth")
         elif (modelName == "pix2pix001"):
-            return Pix2Pix_PyTorch(getModelPath(pix2pix001Model, ext=ext))
+            return Pix2Pix_PyTorch("checkpoints/pix2pix004-002_140_net_G_simplified.pth")
         elif (modelName == "pix2pix002"):
-            return Pix2Pix_PyTorch(getModelPath(pix2pix002Model, ext=ext))
+            return Pix2Pix_PyTorch("checkpoints/pix2pix003-002_140_net_G_simplified.pth")
         elif (modelName == "pix2pix003"):
-            return Pix2Pix_PyTorch(getModelPath(pix2pix003Model, ext=ext))
+            return Pix2Pix_PyTorch("checkpoints/neuralcontours_140_net_G_simplified.pth")
         else:
             return None
     else:
-        animeModel = "anime_style_512x512.onnx"
-        contourModel = "contour_style_512x512.onnx"
-        opensketchModel = "opensketch_style_512x512.onnx"
-        pix2pix001Model = "pix2pix004-002_140_net_G_simplified.onnx"   
-        pix2pix002Model = "pix2pix003-002_140_net_G_simplified.onnx"   
-        pix2pix003Model = "neuralcontours_140_net_G_simplified.onnx"   
-
         if (modelName == "anime"):
-            return Informative_Drawings_Onnx(getModelPath(animeModel))
+            return Informative_Drawings_Onnx("onnx/anime_style_512x512.onnx")
         elif (modelName == "contour"):
-            return Informative_Drawings_Onnx(getModelPath(contourModel))
+            return Informative_Drawings_Onnx("onnx/contour_style_512x512.onnx")
         elif (modelName == "opensketch"):
-            return Informative_Drawings_Onnx(getModelPath(opensketchModel))
+            return Informative_Drawings_Onnx("onnx/opensketch_style_512x512.onnx")
         elif (modelName == "pix2pix001"):
-            return Pix2Pix_Onnx(getModelPath(pix2pix001Model))
+            return Pix2Pix_Onnx("onnx/pix2pix004-002_140_net_G_simplified.onnx")
         elif (modelName == "pix2pix002"):
-            return Pix2Pix_Onnx(getModelPath(pix2pix002Model))
+            return Pix2Pix_Onnx("onnx/pix2pix003-002_140_net_G_simplified.onnx")
         elif (modelName == "pix2pix003"):
-            return Pix2Pix_Onnx(getModelPath(pix2pix003Model))
+            return Pix2Pix_Onnx("onnx/neuralcontours_140_net_G_simplified.onnx")
         else:
             return None
 
@@ -376,10 +378,11 @@ def modelSelector(modelName):
 def doInference(net1, net2=None):
     latkml004 = bpy.context.scene.latkml004_settings
 
-    img_np = renderToNp()
-    img_cv = npToCv(img_np)
-    
+    img_np = renderToNp() # inference expects np array
+    img_cv = npToCv(img_np) # cv converted image used for color pixels later
+
     result = net1.detect(img_np)
+
     if (net2 != None):
         result = net2.detect(result)
 
@@ -502,7 +505,8 @@ def setThickness(thickness):
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-def createOnnxNetwork(modelpath):
+def createOnnxNetwork(modelPath):
+    modelPath = getModelPath(modelPath)
     net = None
 
     so = ort.SessionOptions()
@@ -512,16 +516,16 @@ def createOnnxNetwork(modelpath):
     so.enable_cpu_mem_arena = True
     
     if (ort.get_device().lower() == "gpu"):
-        net = ort.InferenceSession(modelpath, so, providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
+        net = ort.InferenceSession(modelPath, so, providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
     else:
-        net = ort.InferenceSession(modelpath, so)
+        net = ort.InferenceSession(modelPath, so)
 
     return net
 
 
 class Informative_Drawings_Onnx():
-    def __init__(self, modelpath):       
-        self.net = createOnnxNetwork(modelpath)
+    def __init__(self, modelPath):       
+        self.net = createOnnxNetwork(modelPath)
         
         input_shape = self.net.get_inputs()[0].shape
         self.input_height = int(input_shape[2])
@@ -543,8 +547,8 @@ class Informative_Drawings_Onnx():
 
 # https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/1113
 class Pix2Pix_Onnx():
-    def __init__(self, modelpath):
-        self.net = createOnnxNetwork(modelpath)
+    def __init__(self, modelPath):
+        self.net = createOnnxNetwork(modelPath)
 
         self.input_size = 256
         self.input_name = self.net.get_inputs()[0].name
@@ -579,21 +583,105 @@ class Pix2Pix_Onnx():
         return cv2.resize(outs, (srcimg.shape[1], srcimg.shape[0]))
 
 
-def createPyTorchNetwork(modelpath):
-    import torch
+def createPyTorchDevice():
+    device = None
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
+
+    return device
+
+def createPyTorchNetwork(modelPath, device, input_nc=3, output_nc=1, n_blocks=3):
+    modelPath = getModelPath(modelPath)
+    net_G = None
+
+    with torch.no_grad():
+        net_G = Generator(input_nc, output_nc, n_blocks)
+        net_G.to(device)
+        # Load state dicts
+        net_G.load_state_dict(torch.load(modelPath, map_location=device))
+        # Set model's test mode
+        net_G.eval()
+
+    return net_G
 
 
 class Informative_Drawings_PyTorch():
-    def __init__(self, modelpath):
-        pass
+    def __init__(self, modelPath):
+        self.name = '' # name of this experiment
+        self.checkpoints_dir = 'checkpoints' # Where the model checkpoints are saved
+        self.results_dir = 'results' # where to save result images
+        self.geom_name = 'feats2Geom' # name of the geometry predictor
+        self.batchSize = 1 # size of the batches
+        self.dataroot = '' # root directory of the dataset
+        self.depthroot = '' # dataset of corresponding ground truth depth maps
+
+        self.input_nc = 3 # number of channels of input data
+        self.output_nc = 1 # number of channels of output data
+        self.geom_nc = 3 # number of channels of geometry data
+        self.every_feat = 1 # use transfer features for the geometry loss
+        self.num_classes = 55 # number of classes for inception
+        self.midas = 0 # use midas depth map
+
+        self.ngf = 64 # # of gen filters in first conv layer
+        self.n_blocks = 3 # number of resnet blocks for generator
+        self.size = 256 # size of the data (squared assumed)
+        self.cuda = True # use GPU computation', default=True)
+        self.n_cpu = 8 # number of cpu threads to use during batch generation
+        self.which_epoch = 'latest' # which epoch to load from
+        self.aspect_ratio = 1.0 # The ratio width/height. The final height of the load image will be crop_size/aspect_ratio
+
+        self.mode = 'test' # train, val, test, etc
+        self.load_size = 256 # scale images to this size
+        self.crop_size = 256 # then crop to this size
+        self.max_dataset_size = float("inf") # Maximum number of samples allowed per dataset. If the dataset directory contains more than max_dataset_size, only a subset is loaded.
+        self.preprocess = 'resize_and_crop' # scaling and cropping of images at load time [resize_and_crop | crop | scale_width | scale_width_and_crop | none]
+        self.no_flip = True # if specified, do not flip the images for data augmentation
+        self.norm = 'instance' # instance normalization or batch normalization
+
+        self.predict_depth = 0 # run geometry prediction on the generated images
+        self.save_input = 0 # save input image
+        self.reconstruct = 0 # get reconstruction
+        self.how_many = 1 # number of images to test #100
+
+        self.device = createPyTorchDevice() 
+        self.net_G = createPyTorchNetwork(modelPath, self.device)
+        self.net_GB = 0   
+        self.netGeom = 0        
 
     def detect(self, srcimg):
-        pass
+        with torch.no_grad():   
+            srcimg2 = cv2.resize(srcimg, (256, 256))
+            srcimg3 = np.transpose(srcimg2, (2, 0, 1))
+            tensor_array = torch.from_numpy(srcimg3)
+            input_image = tensor_array.to(self.device)
+            output_image = self.net_G(input_image)
+            return output_image
+            '''
+            transforms_r = [transforms.Resize(int(opt.size), Image.BICUBIC), transforms.ToTensor()]
 
+            test_data = UnpairedDepthDataset(opt.dataroot, '', opt, transforms_r=transforms_r, mode=opt.mode, midas=opt.midas>0, depthroot=opt.depthroot)
+
+            dataloader = DataLoader(test_data, batch_size=opt.batchSize, shuffle=False)
+
+            for i, batch in enumerate(dataloader):
+                if i > opt.how_many:
+                    break;
+                img_r  = Variable(batch['r']).to(device)
+                img_depth  = Variable(batch['depth']).to(device)
+                real_A = img_r
+
+                name = batch['name'][0]
+                
+                input_image = real_A
+                image = net_G(input_image)
+                return image
+            '''
 
 class Pix2Pix_PyTorch():
-    def __init__(self, modelpath):
-        pass
+    def __init__(self, modelPath):
+        self.device = createPyTorchNetwork(modelPath) 
 
     def detect(self, srcimg):
         pass
