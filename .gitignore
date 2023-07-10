@@ -1,6 +1,5 @@
 *.pyc
 /*.pyc
-*.pth
 __pycache__/
 results/
 *.latk

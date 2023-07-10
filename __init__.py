@@ -30,14 +30,14 @@ import argparse
 import sys
 import os
 
-import torchvision.transforms as transforms
-from torchvision.utils import save_image
-from torch.utils.data import DataLoader
-from torch.autograd import Variable
+#import torchvision.transforms as transforms
+#from torchvision.utils import save_image
+#from torch.utils.data import DataLoader
+#from torch.autograd import Variable
 import torch
 
-from PIL import Image
-import numpy as np
+#from PIL import Image
+#import numpy as np
 
 def findAddonPath(name=None):
     if not name:
@@ -49,9 +49,9 @@ def findAddonPath(name=None):
     return None
 
 sys.path.append(os.path.join(findAddonPath(), "informative-drawings"))
-from model import Generator, GlobalGenerator2, InceptionV3
-from dataset import UnpairedDepthDataset
-from utils import channel2width
+from model import Generator #, GlobalGenerator2, InceptionV3
+#from dataset import UnpairedDepthDataset
+#from utils import channel2width
 
 sys.path.append(os.path.join(findAddonPath(), "skeleton-tracing/swig"))
 from trace_skeleton import *
@@ -110,7 +110,7 @@ class latkml004Properties(bpy.types.PropertyGroup):
     )
 
     latkml004_ModelStyle1: EnumProperty(
-        name="ONNX1",
+        name="Model1",
         items=(
             ("ANIME", "Anime", "...", 0),
             ("CONTOUR", "Contour", "...", 1),
@@ -123,7 +123,7 @@ class latkml004Properties(bpy.types.PropertyGroup):
     )
 
     latkml004_ModelStyle2: EnumProperty(
-        name="ONNX2",
+        name="Model2",
         items=(
             ("NONE", "None", "...", 0),
             ("ANIME", "Anime", "...", 1),
@@ -344,26 +344,26 @@ def modelSelector(modelName):
     latkml004 = bpy.context.scene.latkml004_settings
     if (latkml004.latkml004_Backend.lower() == "pytorch"):
         if (modelName == "anime"):
-            return Informative_Drawings_PyTorch("checkpoints/anime_style/netG_A_latest.pth")
+            return Informative_Drawings_PyTorch("checkpoints/anime_style.pth")
         elif (modelName == "contour"):
-            return Informative_Drawings_PyTorch("checkpoints/contour_style/netG_A_latest.pth")
+            return Informative_Drawings_PyTorch("checkpoints/contour_style.pth")
         elif (modelName == "opensketch"):
-            return Informative_Drawings_PyTorch("checkpoints/opensketch_style/netG_A_latest.pth")
+            return Informative_Drawings_PyTorch("checkpoints/opensketch_style.pth")
         elif (modelName == "pix2pix001"):
-            return Pix2Pix_PyTorch("checkpoints/pix2pix004-002_140_net_G_simplified.pth")
+            return Pix2Pix_PyTorch("checkpoints/pix2pix004-002_140_net_G.pth")
         elif (modelName == "pix2pix002"):
-            return Pix2Pix_PyTorch("checkpoints/pix2pix003-002_140_net_G_simplified.pth")
+            return Pix2Pix_PyTorch("checkpoints/pix2pix003-002_140_net_G.pth")
         elif (modelName == "pix2pix003"):
-            return Pix2Pix_PyTorch("checkpoints/neuralcontours_140_net_G_simplified.pth")
+            return Pix2Pix_PyTorch("checkpoints/neuralcontours_140_net_G.pth")
         else:
             return None
     else:
         if (modelName == "anime"):
-            return Informative_Drawings_Onnx("onnx/anime_style_512x512.onnx")
+            return Informative_Drawings_Onnx("onnx/anime_style_512x512_simplified.onnx")
         elif (modelName == "contour"):
-            return Informative_Drawings_Onnx("onnx/contour_style_512x512.onnx")
+            return Informative_Drawings_Onnx("onnx/contour_style_512x512_simplified.onnx")
         elif (modelName == "opensketch"):
-            return Informative_Drawings_Onnx("onnx/opensketch_style_512x512.onnx")
+            return Informative_Drawings_Onnx("onnx/opensketch_style_512x512_simplified.onnx")
         elif (modelName == "pix2pix001"):
             return Pix2Pix_Onnx("onnx/pix2pix004-002_140_net_G_simplified.onnx")
         elif (modelName == "pix2pix002"):
@@ -384,6 +384,8 @@ def doInference(net1, net2=None):
     result = net1.detect(img_np)
 
     if (net2 != None):
+        if (latkml004.latkml004_Backend.lower() == "pytorch"):
+            result = cv2.cvtColor(result, cv2.COLOR_GRAY2RGB)
         result = net2.detect(result)
 
     outputUrl = os.path.join(bpy.app.tempdir, "output.png")
@@ -589,7 +591,6 @@ def createPyTorchDevice():
         device = torch.device("cuda")
     else:
         device = torch.device("cpu")
-
     return device
 
 def createPyTorchNetwork(modelPath, device, input_nc=3, output_nc=1, n_blocks=3):
@@ -609,49 +610,11 @@ def createPyTorchNetwork(modelPath, device, input_nc=3, output_nc=1, n_blocks=3)
 
 class Informative_Drawings_PyTorch():
     def __init__(self, modelPath):
-        self.name = '' # name of this experiment
-        self.checkpoints_dir = 'checkpoints' # Where the model checkpoints are saved
-        self.results_dir = 'results' # where to save result images
-        self.geom_name = 'feats2Geom' # name of the geometry predictor
-        self.batchSize = 1 # size of the batches
-        self.dataroot = '' # root directory of the dataset
-        self.depthroot = '' # dataset of corresponding ground truth depth maps
-
-        self.input_nc = 3 # number of channels of input data
-        self.output_nc = 1 # number of channels of output data
-        self.geom_nc = 3 # number of channels of geometry data
-        self.every_feat = 1 # use transfer features for the geometry loss
-        self.num_classes = 55 # number of classes for inception
-        self.midas = 0 # use midas depth map
-
-        self.ngf = 64 # # of gen filters in first conv layer
-        self.n_blocks = 3 # number of resnet blocks for generator
-        self.size = 256 # size of the data (squared assumed)
-        self.cuda = True # use GPU computation', default=True)
-        self.n_cpu = 8 # number of cpu threads to use during batch generation
-        self.which_epoch = 'latest' # which epoch to load from
-        self.aspect_ratio = 1.0 # The ratio width/height. The final height of the load image will be crop_size/aspect_ratio
-
-        self.mode = 'test' # train, val, test, etc
-        self.load_size = 256 # scale images to this size
-        self.crop_size = 256 # then crop to this size
-        self.max_dataset_size = float("inf") # Maximum number of samples allowed per dataset. If the dataset directory contains more than max_dataset_size, only a subset is loaded.
-        self.preprocess = 'resize_and_crop' # scaling and cropping of images at load time [resize_and_crop | crop | scale_width | scale_width_and_crop | none]
-        self.no_flip = True # if specified, do not flip the images for data augmentation
-        self.norm = 'instance' # instance normalization or batch normalization
-
-        self.predict_depth = 0 # run geometry prediction on the generated images
-        self.save_input = 0 # save input image
-        self.reconstruct = 0 # get reconstruction
-        self.how_many = 1 # number of images to test #100
-
         self.device = createPyTorchDevice() 
-        self.net_G = createPyTorchNetwork(modelPath, self.device)
-        self.net_GB = 0   
-        self.netGeom = 0        
+        self.net_G = createPyTorchNetwork(modelPath, self.device)   
 
     def detect(self, srcimg):
-        with torch.no_grad():              
+        with torch.no_grad():   
             srcimg2 = np.transpose(srcimg, (2, 0, 1))
 
             tensor_array = torch.from_numpy(srcimg2)
@@ -666,7 +629,8 @@ class Informative_Drawings_PyTorch():
 
 class Pix2Pix_PyTorch():
     def __init__(self, modelPath):
-        self.device = createPyTorchNetwork(modelPath) 
+        self.device = createPyTorchDevice() 
+        self.net_G = createPyTorchNetwork(modelPath, self.device)   
 
     def detect(self, srcimg):
         pass
