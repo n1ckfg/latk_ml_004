@@ -20,7 +20,7 @@ import sys
 import argparse
 import cv2
 import numpy as np
-import onnxruntime
+import onnxruntime as ort
 import latk
 import latk_blender as lb
 from skimage.morphology import skeletonize
@@ -73,16 +73,23 @@ class latkml004Properties(bpy.types.PropertyGroup):
     """Properties for latkml004"""
     bl_idname = "GREASE_PENCIL_PT_latkml004Properties"
 
-    '''
+    latkml004_SourceImage: EnumProperty(
+        name="Source Image",
+        items=(
+            ("RGB", "RGB", "...", 0),
+            ("Depth", "Depth", "...", 1)
+        ),
+        default="RGB"
+    )
+
     latkml004_Backend: EnumProperty(
         name="Backend",
         items=(
-            ("CPU", "CPU", "...", 0),
-            ("CUDA", "CUDA", "...", 1)
+            ("ONNX_CPU", "ONNX CPU", "...", 0),
+            ("ONNX_CUDA", "ONNX CUDA", "...", 1)
         ),
-        default="CPU"
+        default="ONNX_CPU"
     )
-    '''
 
     latkml004_ModelStyle1: EnumProperty(
         name="ONNX1",
@@ -214,6 +221,9 @@ class latkml004Properties_Panel(bpy.types.Panel):
         row.prop(latkml004, "latkml004_ModelStyle2")
 
         row = layout.row()
+        row.prop(latkml004, "latkml004_SourceImage")
+
+        row = layout.row()
         row.prop(latkml004, "latkml004_lineThreshold")
 
         row = layout.row()
@@ -226,8 +236,8 @@ class latkml004Properties_Panel(bpy.types.Panel):
         row = layout.row()
         row.prop(latkml004, "latkml004_thickness")
 
-        #row = layout.row()
-        #row.prop(latkml004, "latkml004_Backend")
+        row = layout.row()
+        row.prop(latkml004, "latkml004_Backend")
 
 classes = (
     OBJECT_OT_latkml004_prefs,
@@ -465,23 +475,25 @@ def setThickness(thickness):
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
+def createOnnxNetwork(modelpath):
+    latkml004 = bpy.context.scene.latkml004_settings
+
+    so = ort.SessionOptions()
+    so.log_severity_level = 3
+    so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL    
+    so.enable_mem_pattern = True
+    so.enable_cpu_mem_arena = True
+    
+    if (latkml004.latkml004_Backend.lower() == "onnx_cuda"):
+        net = ort.InferenceSession(modelpath, so, providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
+    else:
+        net = ort.InferenceSession(modelpath, so) #, providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
+
+    return net
+
 class Informative_Drawings():
-    def __init__(self, modelpath):
-        #latkml004 = bpy.context.scene.latkml004_settings    
-        ''''
-        try:
-            cv_net = cv2.dnn.readNet(modelpath)
-        except:
-            print('opencv read onnx failed!!!')
-        '''
-        so = onnxruntime.SessionOptions()
-        so.log_severity_level = 3
-        so.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
-        
-        #if (latkml004.latkml004_Backend.lower() == "cuda"):
-        self.net = onnxruntime.InferenceSession(modelpath, so, providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
-        #else:
-            #self.net = onnxruntime.InferenceSession(modelpath, so)
+    def __init__(self, modelpath):       
+        self.net = createOnnxNetwork(modelpath)
         
         input_shape = self.net.get_inputs()[0].shape
         self.input_height = int(input_shape[2])
@@ -503,16 +515,7 @@ class Informative_Drawings():
 # https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/1113
 class Pix2pix():
     def __init__(self, modelpath):
-        #latkml004 = bpy.context.scene.latkml004_settings
-
-        so = onnxruntime.SessionOptions()
-        so.log_severity_level = 3
-        so.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
-
-        #if (latkml004.latkml004_Backend.lower() == "cuda"):
-        self.net = onnxruntime.InferenceSession(modelpath, so, providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
-        #else:
-            #self.net = onnxruntime.InferenceSession(modelpath, so)
+        self.net = createOnnxNetwork(modelpath)
 
         self.input_size = 256
         self.input_name = self.net.get_inputs()[0].name
@@ -560,7 +563,7 @@ if __name__ == '__main__':
 
     cv2.namedWindow('srcimg', cv2.WINDOW_NORMAL)
     cv2.imshow('srcimg', srcimg)
-    winName = 'Deep learning in onnxruntime'
+    winName = 'Deep learning in ort'
     cv2.namedWindow(winName, cv2.WINDOW_NORMAL)
     cv2.imshow(winName, result)
     cv2.waitKey(0)
