@@ -85,10 +85,10 @@ class latkml004Properties(bpy.types.PropertyGroup):
     latkml004_Backend: EnumProperty(
         name="Backend",
         items=(
-            ("ONNX_CPU", "ONNX CPU", "...", 0),
-            ("ONNX_CUDA", "ONNX CUDA", "...", 1)
+            ("ONNX", "ONNX", "...", 0),
+            ("PYTORCH", "PyTorch", "...", 1)
         ),
-        default="ONNX_CPU"
+        default="ONNX"
     )
 
     latkml004_ModelStyle1: EnumProperty(
@@ -123,13 +123,13 @@ class latkml004Properties(bpy.types.PropertyGroup):
     latkml004_lineThreshold: FloatProperty(
         name="lineThreshold",
         description="...",
-        default=16.0 #32 #64
+        default=32.0 #64.0
     )
 
     latkml004_csize: IntProperty(
         name="csize",
         description="...",
-        default=3 #10
+        default=10
     )
 
     latkml004_maxIter: IntProperty(
@@ -158,7 +158,7 @@ class latkml004_Button_AllFrames(bpy.types.Operator):
     
     def execute(self, context):
         latkml004 = context.scene.latkml004_settings
-        onnx1, onnx2 = loadModel()
+        net1, net2 = loadModel()
 
         la = latk.Latk()
         la.layers.append(latk.LatkLayer())
@@ -166,7 +166,7 @@ class latkml004_Button_AllFrames(bpy.types.Operator):
         start, end = lb.getStartEnd()
         for i in range(start, end):
             lb.goToFrame(i)
-            laFrame = doInference(onnx1, onnx2)
+            laFrame = doInference(net1, net2)
             la.layers[0].frames.append(laFrame)
 
         lb.fromLatkToGp(la, resizeTimeline=False)
@@ -181,11 +181,11 @@ class latkml004_Button_SingleFrame(bpy.types.Operator):
     
     def execute(self, context):
         latkml004 = context.scene.latkml004_settings
-        onnx1, onnx2 = loadModel()
+        net1, net2 = loadModel()
 
         la = latk.Latk()
         la.layers.append(latk.LatkLayer())
-        laFrame = doInference(onnx1, onnx2)
+        laFrame = doInference(net1, net2)
         la.layers[0].frames.append(laFrame)
         
         lb.fromLatkToGp(la, resizeTimeline=False)
@@ -311,8 +311,8 @@ def remap(value, min1, max1, min2, max2):
     '''
     return np.interp(value,[min1, max1],[min2, max2])
 
-def getModelPath(name):
-    return os.path.join(findAddonPath(), os.path.join("onnx", name))
+def getModelPath(name, ext="onnx"):
+    return os.path.join(findAddonPath(), os.path.join(ext, name))
 
 def loadModel():
     latkml004 = bpy.context.scene.latkml004_settings
@@ -323,38 +323,65 @@ def loadModel():
     return returns1, returns2
 
 def modelSelector(modelName):
-    animeModel = "anime_style_512x512.onnx"
-    contourModel = "contour_style_512x512.onnx"
-    opensketchModel = "opensketch_style_512x512.onnx"
-    pix2pix001Model = "pix2pix004-002_140_net_G_simplified.onnx"   
-    pix2pix002Model = "pix2pix003-002_140_net_G_simplified.onnx"   
-    pix2pix003Model = "neuralcontours_140_net_G_simplified.onnx"   
+    latkml004 = bpy.context.scene.latkml004_settings
+    if (latkml004.latkml004_Backend.lower() == "pytorch"):
+        animeModel = "anime_style_512x512.pth"
+        contourModel = "contour_style_512x512.pth"
+        opensketchModel = "opensketch_style_512x512.pth"
+        pix2pix001Model = "pix2pix004-002_140_net_G_simplified.pth"   
+        pix2pix002Model = "pix2pix003-002_140_net_G_simplified.pth"   
+        pix2pix003Model = "neuralcontours_140_net_G_simplified.pth"   
 
-    if (modelName == "anime"):
-        return Informative_Drawings(getModelPath(animeModel))
-    elif (modelName == "contour"):
-        return Informative_Drawings(getModelPath(contourModel))
-    elif (modelName == "opensketch"):
-        return Informative_Drawings(getModelPath(opensketchModel))
-    elif (modelName == "pix2pix001"):
-        return Pix2pix(getModelPath(pix2pix001Model))
-    elif (modelName == "pix2pix002"):
-        return Pix2pix(getModelPath(pix2pix002Model))
-    elif (modelName == "pix2pix003"):
-        return Pix2pix(getModelPath(pix2pix003Model))
+        ext="pth"
+
+        if (modelName == "anime"):
+            return Informative_Drawings_PyTorch(getModelPath(animeModel, ext=ext))
+        elif (modelName == "contour"):
+            return Informative_Drawings_PyTorch(getModelPath(contourModel, ext=ext))
+        elif (modelName == "opensketch"):
+            return Informative_Drawings_PyTorch(getModelPath(opensketchModel, ext=ext))
+        elif (modelName == "pix2pix001"):
+            return Pix2Pix_PyTorch(getModelPath(pix2pix001Model, ext=ext))
+        elif (modelName == "pix2pix002"):
+            return Pix2Pix_PyTorch(getModelPath(pix2pix002Model, ext=ext))
+        elif (modelName == "pix2pix003"):
+            return Pix2Pix_PyTorch(getModelPath(pix2pix003Model, ext=ext))
+        else:
+            return None
     else:
-        return None
+        animeModel = "anime_style_512x512.onnx"
+        contourModel = "contour_style_512x512.onnx"
+        opensketchModel = "opensketch_style_512x512.onnx"
+        pix2pix001Model = "pix2pix004-002_140_net_G_simplified.onnx"   
+        pix2pix002Model = "pix2pix003-002_140_net_G_simplified.onnx"   
+        pix2pix003Model = "neuralcontours_140_net_G_simplified.onnx"   
+
+        if (modelName == "anime"):
+            return Informative_Drawings_Onnx(getModelPath(animeModel))
+        elif (modelName == "contour"):
+            return Informative_Drawings_Onnx(getModelPath(contourModel))
+        elif (modelName == "opensketch"):
+            return Informative_Drawings_Onnx(getModelPath(opensketchModel))
+        elif (modelName == "pix2pix001"):
+            return Pix2Pix_Onnx(getModelPath(pix2pix001Model))
+        elif (modelName == "pix2pix002"):
+            return Pix2Pix_Onnx(getModelPath(pix2pix002Model))
+        elif (modelName == "pix2pix003"):
+            return Pix2Pix_Onnx(getModelPath(pix2pix003Model))
+        else:
+            return None
 
 # https://blender.stackexchange.com/questions/262742/python-bpy-2-8-render-directly-to-matrix-array
 # https://blender.stackexchange.com/questions/2170/how-to-access-render-result-pixels-from-python-script/3054#3054
-def doInference(onnx1, onnx2=None):
+def doInference(net1, net2=None):
     latkml004 = bpy.context.scene.latkml004_settings
 
     img_np = renderToNp()
     img_cv = npToCv(img_np)
-    result = onnx1.detect(img_np)
-    if (onnx2 != None):
-        result = onnx2.detect(result)
+    
+    result = net1.detect(img_np)
+    if (net2 != None):
+        result = net2.detect(result)
 
     outputUrl = os.path.join(bpy.app.tempdir, "output.png")
     cv2.imwrite(outputUrl, result)
@@ -476,7 +503,7 @@ def setThickness(thickness):
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 def createOnnxNetwork(modelpath):
-    latkml004 = bpy.context.scene.latkml004_settings
+    net = None
 
     so = ort.SessionOptions()
     so.log_severity_level = 3
@@ -484,14 +511,15 @@ def createOnnxNetwork(modelpath):
     so.enable_mem_pattern = True
     so.enable_cpu_mem_arena = True
     
-    if (latkml004.latkml004_Backend.lower() == "onnx_cuda"):
+    if (ort.get_device().lower() == "gpu"):
         net = ort.InferenceSession(modelpath, so, providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
     else:
-        net = ort.InferenceSession(modelpath, so) #, providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
+        net = ort.InferenceSession(modelpath, so)
 
     return net
 
-class Informative_Drawings():
+
+class Informative_Drawings_Onnx():
     def __init__(self, modelpath):       
         self.net = createOnnxNetwork(modelpath)
         
@@ -512,8 +540,9 @@ class Informative_Drawings():
         result = cv2.resize(result.astype('uint8'), (srcimg.shape[1], srcimg.shape[0]))
         return result
 
+
 # https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/1113
-class Pix2pix():
+class Pix2Pix_Onnx():
     def __init__(self, modelpath):
         self.net = createOnnxNetwork(modelpath)
 
@@ -523,13 +552,13 @@ class Pix2pix():
         print("input_name = " + self.input_name)
         print("output_name = " + self.output_name)
 
-    def detect(self, image):
-        if isinstance(image, str):
-            image=cv2.imdecode(np.fromfile(image, dtype=np.uint8), -1)
-        elif isinstance(image, np.ndarray):
-            image=image.copy()
-        # image=image[0:256, 0:256]
-        img = cv2.resize(image, (self.input_size, self.input_size))
+    def detect(self, srcimg):
+        if isinstance(srcimg, str):
+            srcimg=cv2.imdecode(np.fromfile(srcimg, dtype=np.uint8), -1)
+        elif isinstance(srcimg, np.ndarray):
+            srcimg=srcimg.copy()
+        # srcimg=srcimg[0:256, 0:256]
+        img = cv2.resize(srcimg, (self.input_size, self.input_size))
         input_image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         input_image = input_image.transpose(2, 0, 1)
         input_image = np.expand_dims(input_image, axis=0)
@@ -547,53 +576,24 @@ class Pix2pix():
         
         # [y:y+height, x:x+width]
         outs = outs[0:256, 256:512]
-        return cv2.resize(outs, (image.shape[1], image.shape[0]))
-        #return outs
+        return cv2.resize(outs, (srcimg.shape[1], srcimg.shape[0]))
 
-'''
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--imgpath", type=str, default='images/2.jpg', help='image path')
-    parser.add_argument("--modelpath", type=str, default='weights/opensketch_style_512x512.onnx', choices=["weights/opensketch_style_512x512.onnx", "weights/anime_style_512x512.onnx", "weights/contour_style_512x512.onnx"], help='onnx filepath')
-    args = parser.parse_args()
 
-    mynet = Informative_Drawings(args.modelpath)
-    srcimg = cv2.imread(args.imgpath)
-    result = mynet.detect(srcimg)
+def createPyTorchNetwork(modelpath):
+    import torch
 
-    cv2.namedWindow('srcimg', cv2.WINDOW_NORMAL)
-    cv2.imshow('srcimg', srcimg)
-    winName = 'Deep learning in ort'
-    cv2.namedWindow(winName, cv2.WINDOW_NORMAL)
-    cv2.imshow(winName, result)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-'''
 
-'''
-@echo off
+class Informative_Drawings_PyTorch():
+    def __init__(self, modelpath):
+        pass
 
-set STYLE=anime_style
-rem STYLE=opensketch_style
-set RGB_PATH=input
-set DEPTH_PATH=output
-set RESULT_PATH=results\%STYLE%
-set MAX_FRAMES=999
-set RENDER_RES=480
+    def detect(self, srcimg):
+        pass
 
-rmdir /s /q %RESULT_PATH%
-python informative-drawings\test.py --name %STYLE% --dataroot %RGB_PATH% --how_many %MAX_FRAMES% --size %RENDER_RES%
 
-rmdir /s /q %DEPTH_PATH%
-python midas\run.py --input_path %RGB_PATH% --output_path %DEPTH_PATH% --model_weights midas\model\model-f6b98070.pt 
+class Pix2Pix_PyTorch():
+    def __init__(self, modelpath):
+        pass
 
-set LINE_THRESHOLD=64
-set USE_SWIG=1
-set INPAINT=0
-set DEPTH_CAMERA_NAME="apple_lidar"
-set DEPTH_CAMERA_MODE="default"
-
-python skeletonizer.py -- %RESULT_PATH% %RGB_PATH% %DEPTH_PATH% %LINE_THRESHOLD% %USE_SWIG% %INPAINT% %DEPTH_CAMERA_NAME% %DEPTH_CAMERA_MODE%
-
-@pause
-'''
+    def detect(self, srcimg):
+        pass
