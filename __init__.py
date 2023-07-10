@@ -20,7 +20,6 @@ import sys
 import argparse
 import cv2
 import numpy as np
-import onnxruntime as ort
 import latk
 import latk_blender as lb
 from skimage.morphology import skeletonize
@@ -30,14 +29,7 @@ import argparse
 import sys
 import os
 
-#import torchvision.transforms as transforms
-#from torchvision.utils import save_image
-#from torch.utils.data import DataLoader
-#from torch.autograd import Variable
-import torch
-
-#from PIL import Image
-#import numpy as np
+import onnxruntime as ort
 
 def findAddonPath(name=None):
     if not name:
@@ -48,13 +40,17 @@ def findAddonPath(name=None):
             return os.path.dirname(url)
     return None
 
-sys.path.append(os.path.join(findAddonPath(), "informative-drawings"))
-from model import Generator #, GlobalGenerator2, InceptionV3
-#from dataset import UnpairedDepthDataset
-#from utils import channel2width
-
 sys.path.append(os.path.join(findAddonPath(), "skeleton-tracing/swig"))
 from trace_skeleton import *
+
+import torch
+from collections import namedtuple
+
+sys.path.append(os.path.join(findAddonPath(), "informative-drawings"))
+from model import Generator 
+
+sys.path.append(os.path.join(findAddonPath(), "pix2pix"))
+from models import pix2pix_model
 
 class latkml004Preferences(bpy.types.AddonPreferences):
     bl_idname = __name__
@@ -115,9 +111,9 @@ class latkml004Properties(bpy.types.PropertyGroup):
             ("ANIME", "Anime", "...", 0),
             ("CONTOUR", "Contour", "...", 1),
             ("OPENSKETCH", "OpenSketch", "...", 2),
-            ("PIX2PIX001", "PxP 001", "...", 3),
-            ("PIX2PIX002", "PxP 002", "...", 4),
-            ("PIX2PIX003", "PxP NeuralContours", "...", 5)
+            ("PXP_001", "PxP 001", "...", 3),
+            ("PXP_002", "PxP 002", "...", 4),
+            ("PXP_NEURALCONTOURS", "PxP NeuralContours", "...", 5)
         ),
         default="ANIME"
     )
@@ -239,9 +235,6 @@ class latkml004Properties_Panel(bpy.types.Panel):
         row.prop(latkml004, "latkml004_ModelStyle2")
 
         row = layout.row()
-        row.prop(latkml004, "latkml004_SourceImage")
-
-        row = layout.row()
         row.prop(latkml004, "latkml004_lineThreshold")
 
         row = layout.row()
@@ -253,6 +246,9 @@ class latkml004Properties_Panel(bpy.types.Panel):
 
         row = layout.row()
         row.prop(latkml004, "latkml004_thickness")
+
+        row = layout.row()
+        row.prop(latkml004, "latkml004_SourceImage")
 
         row = layout.row()
         row.prop(latkml004, "latkml004_Backend")
@@ -349,11 +345,11 @@ def modelSelector(modelName):
             return Informative_Drawings_PyTorch("checkpoints/contour_style.pth")
         elif (modelName == "opensketch"):
             return Informative_Drawings_PyTorch("checkpoints/opensketch_style.pth")
-        elif (modelName == "pix2pix001"):
+        elif (modelName == "pxp_001"):
             return Pix2Pix_PyTorch("checkpoints/pix2pix004-002_140_net_G.pth")
-        elif (modelName == "pix2pix002"):
+        elif (modelName == "pxp_002"):
             return Pix2Pix_PyTorch("checkpoints/pix2pix003-002_140_net_G.pth")
-        elif (modelName == "pix2pix003"):
+        elif (modelName == "pxp_neuralcontours"):
             return Pix2Pix_PyTorch("checkpoints/neuralcontours_140_net_G.pth")
         else:
             return None
@@ -364,11 +360,11 @@ def modelSelector(modelName):
             return Informative_Drawings_Onnx("onnx/contour_style_512x512_simplified.onnx")
         elif (modelName == "opensketch"):
             return Informative_Drawings_Onnx("onnx/opensketch_style_512x512_simplified.onnx")
-        elif (modelName == "pix2pix001"):
+        elif (modelName == "pxp_001"):
             return Pix2Pix_Onnx("onnx/pix2pix004-002_140_net_G_simplified.onnx")
-        elif (modelName == "pix2pix002"):
+        elif (modelName == "pxp_002"):
             return Pix2Pix_Onnx("onnx/pix2pix003-002_140_net_G_simplified.onnx")
-        elif (modelName == "pix2pix003"):
+        elif (modelName == "pxp_neuralcontours"):
             return Pix2Pix_Onnx("onnx/neuralcontours_140_net_G_simplified.onnx")
         else:
             return None
@@ -384,9 +380,8 @@ def doInference(net1, net2=None):
     result = net1.detect(img_np)
 
     if (net2 != None):
-        if (latkml004.latkml004_Backend.lower() == "pytorch"):
-            result = cv2.cvtColor(result, cv2.COLOR_GRAY2RGB)
-        result = net2.detect(result)
+        if (latkml004.latkml004_Backend.lower() != "pytorch"):
+            result = net2.detect(result)
 
     outputUrl = os.path.join(bpy.app.tempdir, "output.png")
     cv2.imwrite(outputUrl, result)
@@ -593,25 +588,19 @@ def createPyTorchDevice():
         device = torch.device("cpu")
     return device
 
-def createPyTorchNetwork(modelPath, device, input_nc=3, output_nc=1, n_blocks=3):
+def createPyTorchNetwork(modelPath, net_G, device, input_nc=3, output_nc=1, n_blocks=3):
     modelPath = getModelPath(modelPath)
-    net_G = None
-
-    with torch.no_grad():
-        net_G = Generator(input_nc, output_nc, n_blocks)
-        net_G.to(device)
-        # Load state dicts
-        net_G.load_state_dict(torch.load(modelPath, map_location=device))
-        # Set model's test mode
-        net_G.eval()
-
+    net_G.to(device)
+    net_G.load_state_dict(torch.load(modelPath, map_location=device))
+    net_G.eval()
     return net_G
 
 
 class Informative_Drawings_PyTorch():
     def __init__(self, modelPath):
-        self.device = createPyTorchDevice() 
-        self.net_G = createPyTorchNetwork(modelPath, self.device)   
+        self.device = createPyTorchDevice()         
+        generator = Generator(3, 1, 3) # input_nc=3, output_nc=1, n_blocks=3
+        self.net_G = createPyTorchNetwork(modelPath, generator, self.device)   
 
     def detect(self, srcimg):
         with torch.no_grad():   
@@ -627,10 +616,39 @@ class Informative_Drawings_PyTorch():
             
             return result
 
+
 class Pix2Pix_PyTorch():
     def __init__(self, modelPath):
         self.device = createPyTorchDevice() 
-        self.net_G = createPyTorchNetwork(modelPath, self.device)   
+        Opt = namedtuple("Opt", ["model","gpu_ids","isTrain","checkpoints_dir","name","preprocess","input_nc","output_nc","ngf","netG","norm","no_dropout","init_type", "init_gain","load_iter","dataset_mode","epoch"])
+        opt = Opt("pix2pix", [], False, "", "", False, 3, 3, 64, "unet_256", "batch", True, "normal", 0.02, 0, "aligned", "latest")
+
+        generator = pix2pix_model.Pix2PixModel(opt).netG 
+
+        self.net_G = createPyTorchNetwork(modelPath, generator, self.device)   
 
     def detect(self, srcimg):
-        pass
+        with torch.no_grad():  
+            srcimg2 = cv2.resize(srcimg, (256, 256))
+            input_image = cv2.cvtColor(srcimg2, cv2.COLOR_BGR2RGB)
+            input_image = input_image.transpose(2, 0, 1)
+            input_image = np.expand_dims(input_image, axis=0)
+            #input_image = input_image / 255.0
+            input_image = (input_image - 0.5) / 0.5 
+            input_image = input_image.astype('float32')
+
+            tensor_array = torch.from_numpy(input_image)
+            input_tensor = tensor_array.to(self.device)
+            output_tensor = self.net_G(input_tensor)
+
+            result = output_tensor[0].detach().cpu().numpy() #.transpose(1, 2, 0)
+            result = np.clip(((result*0.5+0.5) * 255), 0, 255).astype(np.uint8) 
+            result = result.transpose(1, 2, 0).astype('uint8')
+            result = cv2.cvtColor(result, cv2.COLOR_RGB2BGR)
+
+            #result = output_tensor.detach().cpu().numpy().transpose(1, 2, 0)
+            #result *= 255
+            
+            result = cv2.resize(result, (srcimg.shape[1], srcimg.shape[0]))
+            
+            return result
