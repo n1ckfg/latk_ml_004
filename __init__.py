@@ -380,8 +380,7 @@ def doInference(net1, net2=None):
     result = net1.detect(img_np)
 
     if (net2 != None):
-        if (latkml004.latkml004_Backend.lower() != "pytorch"):
-            result = net2.detect(result)
+        result = net2.detect(result)
 
     outputUrl = os.path.join(bpy.app.tempdir, "output.png")
     cv2.imwrite(outputUrl, result)
@@ -580,15 +579,16 @@ class Pix2Pix_Onnx():
         return cv2.resize(outs, (srcimg.shape[1], srcimg.shape[0]))
 
 
-def createPyTorchDevice():
+def getPyTorchDevice():
     device = None
     if torch.cuda.is_available():
         device = torch.device("cuda")
     else:
         device = torch.device("cpu")
-    return device
+        return device
 
-def createPyTorchNetwork(modelPath, net_G, device, input_nc=3, output_nc=1, n_blocks=3):
+def createPyTorchNetwork(modelPath, net_G, input_nc=3, output_nc=1, n_blocks=3):
+    device = getPyTorchDevice()
     modelPath = getModelPath(modelPath)
     net_G.to(device)
     net_G.load_state_dict(torch.load(modelPath, map_location=device))
@@ -598,7 +598,7 @@ def createPyTorchNetwork(modelPath, net_G, device, input_nc=3, output_nc=1, n_bl
 
 class Informative_Drawings_PyTorch():
     def __init__(self, modelPath):
-        self.device = createPyTorchDevice()         
+        self.device = getPyTorchDevice()         
         generator = Generator(3, 1, 3) # input_nc=3, output_nc=1, n_blocks=3
         self.net_G = createPyTorchNetwork(modelPath, generator, self.device)   
 
@@ -619,7 +619,8 @@ class Informative_Drawings_PyTorch():
 
 class Pix2Pix_PyTorch():
     def __init__(self, modelPath):
-        self.device = createPyTorchDevice() 
+        self.device = getPyTorchDevice() 
+        
         Opt = namedtuple("Opt", ["model","gpu_ids","isTrain","checkpoints_dir","name","preprocess","input_nc","output_nc","ngf","netG","norm","no_dropout","init_type", "init_gain","load_iter","dataset_mode","epoch"])
         opt = Opt("pix2pix", [], False, "", "", False, 3, 3, 64, "unet_256", "batch", True, "normal", 0.02, 0, "aligned", "latest")
 
@@ -642,8 +643,8 @@ class Pix2Pix_PyTorch():
             output_tensor = self.net_G(input_tensor)
 
             result = output_tensor[0].detach().cpu().numpy() #.transpose(1, 2, 0)
-            result = np.clip(((result*0.5+0.5) * 255), 0, 255).astype(np.uint8) 
-            result = result.transpose(1, 2, 0).astype('uint8')
+            result = np.clip(((result*0.5+0.5) * 255), 0, 255) #.astype(np.uint8) 
+            result = result.transpose(1, 2, 0) #.astype('uint8')
             result = cv2.cvtColor(result, cv2.COLOR_RGB2BGR)
 
             #result = output_tensor.detach().cpu().numpy().transpose(1, 2, 0)
