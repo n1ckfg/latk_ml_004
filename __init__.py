@@ -290,25 +290,93 @@ def cvToBlender(img):
     blender_image.update()
     return blender_image
 
-def renderFrame(_format="PNG"):
-    output_path = os.path.join(bpy.app.tempdir, "render.png")
-    bpy.context.scene.render.filepath = output_path
+def createTempOutputSettings(newFilename="render.png", newFormat="PNG"):
+    newFilepath = os.path.join(bpy.app.tempdir, newFilename)
+
+    oldFilepath = bpy.context.scene.render.filepath
     oldFormat = bpy.context.scene.render.image_settings.file_format
-    bpy.context.scene.render.image_settings.file_format = _format
-    bpy.ops.render.render(write_still=True)
+    
+    bpy.context.scene.render.filepath = newFilepath
+    bpy.context.scene.render.image_settings.file_format = newFormat
+
+    return oldFilepath, oldFormat, newFilepath, newFormat
+
+def restoreOldOutputSettings(oldFilepath, oldFormat):
+    bpy.context.scene.render.filepath = oldFilepath
     bpy.context.scene.render.image_settings.file_format = oldFormat
 
-def renderToCv():
-    renderFrame()
-    image_path = bpy.context.scene.render.filepath
+def renderFrame(depthPass=False):
+    oldFilepath, oldFormat, newFilepath, newFormat = createTempOutputSettings()
+    if (depthPass == True):
+        setupDepthPass(newFilepath.split("." + newFormat)[0] + "_depth")
+    bpy.ops.render.render(write_still=True)
+    restoreOldOutputSettings(oldFilepath, oldFormat)
+    if (depthPass == True):
+        return os.path.join(newFilepath.split("." + newFormat)[0] + "_depth", "Image" + str(bpy.data.scenes['Scene'].frame_current).zfill(4) + "." + newFormat)
+    else:
+        return newFilepath
+
+# https://www.saifkhichi.com/blog/blender-depth-map-surface-normals
+def getDepthPassAlt():
+    """Obtains depth map from Blender render.
+    :return: The depth map of the rendered camera view as a numpy array of size (H,W).
+    """
+    z = bpy.data.images['Viewer Node']
+    w, h = z.size
+    dmap = np.array(z.pixels[:], dtype=np.float32) # convert to numpy array
+    dmap = np.reshape(dmap, (h, w, 4))[:,:,0]
+    dmap = np.rot90(dmap, k=2)
+    dmap = np.fliplr(dmap)
+    return dmap
+
+# https://blender.stackexchange.com/questions/2170/how-to-access-render-result-pixels-from-python-script/23309#23309
+# https://blender.stackexchange.com/questions/56967/how-to-get-depth-data-using-python-api
+def setupDepthPass(url="/my_path/"):
+    # Set up rendering of depth map:
+    bpy.context.scene.use_nodes = True
+    tree = bpy.context.scene.node_tree
+    links = tree.links
+    #~
+    # clear default nodes
+    for n in tree.nodes:
+        tree.nodes.remove(n)
+    #~
+    # create input render layer node
+    rl = tree.nodes.new('CompositorNodeRLayers')
+    #~
+    map = tree.nodes.new(type="CompositorNodeMapValue")
+    # Size is chosen kind of arbitrarily, try out until you're satisfied with resulting depth map.
+    map.size = [0.08]
+    map.use_min = True
+    map.min = [0]
+    map.use_max = True
+    map.max = [255]
+    links.new(rl.outputs[2], map.inputs[0])
+    #~
+    invert = tree.nodes.new(type="CompositorNodeInvert")
+    links.new(map.outputs[0], invert.inputs[1])
+    #~
+    # The viewer can come in handy for inspecting the results in the GUI
+    depthViewer = tree.nodes.new(type="CompositorNodeViewer")
+    links.new(invert.outputs[0], depthViewer.inputs[0])
+    # Use alpha from input.
+    links.new(rl.outputs[1], depthViewer.inputs[1])
+    #~
+    # create a file output node and set the path
+    fileOutput = tree.nodes.new(type="CompositorNodeOutputFile")
+    fileOutput.base_path = url
+    links.new(invert.outputs[0], fileOutput.inputs[0])
+
+def renderToCv(depthPass=False):
+    image_path = renderFrame(depthPass)
     image = cv2.imread(image_path)
     return image
 
-def renderToNp():
-    renderFrame()
+def renderToNp(depthPass=False):
+    image_path = renderFrame(depthPass)
     width = bpy.context.scene.render.resolution_x
     height = bpy.context.scene.render.resolution_y
-    image_path = bpy.context.scene.render.filepath
+
     image = bpy.data.images.load(image_path)
     image_array = np.array(image.pixels[:])
     image_array = image_array.reshape((height, width, 4))
@@ -374,8 +442,15 @@ def modelSelector(modelName):
 def doInference(net1, net2=None):
     latkml004 = bpy.context.scene.latkml004_settings
 
-    img_np = renderToNp() # inference expects np array
-    img_cv = npToCv(img_np) # cv converted image used for color pixels later
+    img_np = None
+    img_cv = None
+    if (latkml004.latkml004_SourceImage.lower() == "depth"):
+        img_np = renderToNp(depthPass=True) # inference expects np array
+        img_cv = renderToCv(depthPass=False) # cv converted image used for color pixels later
+    else:
+        img_np = renderToNp() # inference expects np array
+        img_cv = npToCv(img_np) # cv converted image used for color pixels later
+
 
     result = net1.detect(img_np)
 
