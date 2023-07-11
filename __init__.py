@@ -1,9 +1,9 @@
 bl_info = {
-    "name": "latk-ml-004", 
+    "name": "latk_ml_004", 
     "author": "Nick Fox-Gieg",
     "version": (0, 0, 1),
     "blender": (3, 0, 0),
-    "description": "Generate brushstrokes from a mesh using informative-drawings",
+    "description": "Generate brushstrokes from a mesh using informative-drawings and pix2pix",
     "category": "Animation"
 }
 
