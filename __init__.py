@@ -52,6 +52,7 @@ from model import Generator
 sys.path.append(os.path.join(findAddonPath(), "pix2pix"))
 from models import pix2pix_model
 
+
 class latkml004Preferences(bpy.types.AddonPreferences):
     bl_idname = __name__
 
@@ -70,6 +71,7 @@ class latkml004Preferences(bpy.types.AddonPreferences):
         #row = layout.row()
         #row.prop(self, "extraFormats_Painter")
 
+
 # This is needed to display the preferences menu
 # https://docs.blender.org/api/current/bpy.types.AddonPreferences.html
 class OBJECT_OT_latkml004_prefs(Operator):
@@ -82,6 +84,7 @@ class OBJECT_OT_latkml004_prefs(Operator):
         preferences = context.preferences
         addon_prefs = preferences.addons[__name__].preferences
         return {'FINISHED'}
+
 
 class latkml004Properties(bpy.types.PropertyGroup):
     """Properties for latkml004"""
@@ -164,6 +167,7 @@ class latkml004Properties(bpy.types.PropertyGroup):
         default=10.0
     )
 
+
 class latkml004_Button_AllFrames(bpy.types.Operator):
     """Operate on all frames"""
     bl_idname = "latkml004_button.allframes"
@@ -187,6 +191,7 @@ class latkml004_Button_AllFrames(bpy.types.Operator):
         lb.setThickness(latkml004.latkml004_thickness)
         return {'FINISHED'}
 
+
 class latkml004_Button_SingleFrame(bpy.types.Operator):
     """Operate on a single frame"""
     bl_idname = "latkml004_button.singleframe"
@@ -205,6 +210,7 @@ class latkml004_Button_SingleFrame(bpy.types.Operator):
         lb.fromLatkToGp(la, resizeTimeline=False)
         lb.setThickness(latkml004.latkml004_thickness)
         return {'FINISHED'}
+
 
 # https://blender.stackexchange.com/questions/167862/how-to-create-a-button-on-the-n-panel
 class latkml004Properties_Panel(bpy.types.Panel):
@@ -252,6 +258,7 @@ class latkml004Properties_Panel(bpy.types.Panel):
 
         row = layout.row()
         row.prop(latkml004, "latkml004_Backend")
+
 
 classes = (
     OBJECT_OT_latkml004_prefs,
