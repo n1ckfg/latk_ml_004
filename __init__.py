@@ -184,7 +184,7 @@ class latkml004_Button_AllFrames(bpy.types.Operator):
             la.layers[0].frames.append(laFrame)
 
         lb.fromLatkToGp(la, resizeTimeline=False)
-        setThickness(latkml004.latkml004_thickness)
+        lb.setThickness(latkml004.latkml004_thickness)
         return {'FINISHED'}
 
 class latkml004_Button_SingleFrame(bpy.types.Operator):
@@ -203,7 +203,7 @@ class latkml004_Button_SingleFrame(bpy.types.Operator):
         la.layers[0].frames.append(laFrame)
         
         lb.fromLatkToGp(la, resizeTimeline=False)
-        setThickness(latkml004.latkml004_thickness)
+        lb.setThickness(latkml004.latkml004_thickness)
         return {'FINISHED'}
 
 # https://blender.stackexchange.com/questions/167862/how-to-create-a-button-on-the-n-panel
@@ -384,15 +384,6 @@ def renderToNp(depthPass=False):
     image_array = image_array[:, :, :3]
     return image_array.astype(np.float32)
 
-def remap(value, min1, max1, min2, max2):
-    '''
-    range1 = max1 - min1
-    range2 = max2 - min2
-    valueScaled = float(value - min1) / float(range1)
-    return min2 + (valueScaled * range2)
-    '''
-    return np.interp(value,[min1, max1],[min2, max2])
-
 def getModelPath(url):
     return os.path.join(findAddonPath(), url)
 
@@ -503,8 +494,8 @@ def doInference(net1, net2=None):
                     rgbPixel = img_cv[point[1]][point[0]]
                     rgbPixel2 = (rgbPixel[2], rgbPixel[1], rgbPixel[0], 1)
 
-                    xPos = remap(point[0], 0, resolutionX, xRange.min(), xRange.max())
-                    yPos = remap(point[1], 0, resolutionY, yRange.max(), yRange.min())
+                    xPos = lb.remap(point[0], 0, resolutionX, xRange.min(), xRange.max())
+                    yPos = lb.remap(point[1], 0, resolutionY, yRange.max(), yRange.min())
                    
                     pixelVector = Vector((xPos, yPos, topLeft[2]))
                     pixelVector.rotate(camera.matrix_world.to_quaternion())
@@ -523,7 +514,7 @@ def doInference(net1, net2=None):
                     originalStrokeColors.append(newStrokeColor)
 
         for i in range(0, len(originalStrokes)):
-            separatedTempStrokes, separatedTempStrokeColors = separatePointsByDistance(originalStrokes[i], originalStrokeColors[i], latkml004.latkml004_distThreshold)
+            separatedTempStrokes, separatedTempStrokeColors = lb.separatePointsByDistance(originalStrokes[i], originalStrokeColors[i], latkml004.latkml004_distThreshold)
 
             for j in range(0, len(separatedTempStrokes)):
                 separatedStrokes.append(separatedTempStrokes[j])
@@ -540,40 +531,6 @@ def doInference(net1, net2=None):
                 laFrame.strokes.append(latk.LatkStroke(laPoints))
 
     return laFrame
-
-def separatePointsByDistance(points, colors, threshold):
-    if (len(points) != len(colors)):
-        return None
-
-    separatedPoints = []
-    separatedColors = []
-    currentPoints = []
-    currentColors = []
-
-    for i in range(0, len(points) - 1):
-        currentPoints.append(points[i])
-        currentColors.append(colors[i])
-
-        distance = lb.getDistance(points[i], points[i + 1])
-
-        if (distance > threshold):
-            separatedPoints.append(currentPoints)
-            separatedColors.append(currentColors)
-            currentPoints = []
-            currentColors = []
-
-    currentPoints.append(points[len(points) - 1])
-    currentColors.append(colors[len(colors) - 1])
-    separatedPoints.append(currentPoints)
-    separatedColors.append(currentColors)
-
-    return separatedPoints, separatedColors
-
-def setThickness(thickness):
-    gp = lb.getActiveGp()
-    bpy.ops.object.gpencil_modifier_add(type="GP_THICK")
-    gp.grease_pencil_modifiers["Thickness"].thickness_factor = thickness 
-    bpy.ops.object.gpencil_modifier_apply(apply_as="DATA", modifier="Thickness")
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
