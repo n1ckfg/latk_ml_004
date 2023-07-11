@@ -12,4 +12,4 @@ scikit-image
 latk
 Pillow
 ffmpeg-python
-open3d
+
