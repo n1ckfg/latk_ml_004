@@ -161,7 +161,7 @@ class latkml004Properties(bpy.types.PropertyGroup):
     latkml004_thickness: FloatProperty(
         name="thickness",
         description="...",
-        default=20.0
+        default=10.0
     )
 
 class latkml004_Button_AllFrames(bpy.types.Operator):
