@@ -443,7 +443,6 @@ def doInference(net1, net2=None):
         img_np = renderToNp() # inference expects np array
         img_cv = npToCv(img_np) # cv converted image used for color pixels later
 
-
     result = net1.detect(img_np)
 
     if (net2 != None):
