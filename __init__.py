@@ -481,6 +481,10 @@ def doInference(net1, net2=None):
     separatedStrokes = []
     separatedStrokeColors = []
 
+    # raycasting needs cursor at world origin
+    origCursorLocation = bpy.context.scene.cursor.location
+    bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
+    
     for target in bpy.data.objects:
         if target.type == "MESH":
             matrixWorld = target.matrix_world
@@ -530,6 +534,7 @@ def doInference(net1, net2=None):
             if (len(laPoints) > 1):
                 laFrame.strokes.append(latk.LatkStroke(laPoints))
 
+    bpy.context.scene.cursor.location = origCursorLocation
     return laFrame
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
