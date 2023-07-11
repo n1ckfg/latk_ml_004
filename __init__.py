@@ -138,7 +138,7 @@ class latkml004Properties(bpy.types.PropertyGroup):
     '''
 
     latkml004_lineThreshold: FloatProperty(
-        name="lineThreshold",
+        name="Line Threshold",
         description="...",
         default=32.0 #64.0
     )
@@ -156,13 +156,13 @@ class latkml004Properties(bpy.types.PropertyGroup):
     )
 
     latkml004_distThreshold: FloatProperty(
-        name="distThreshold",
+        name="Dist Threshold",
         description="...",
         default=0.1 #0.5
     )
 
     latkml004_thickness: FloatProperty(
-        name="thickness",
+        name="Thickness %",
         description="...",
         default=10.0
     )
