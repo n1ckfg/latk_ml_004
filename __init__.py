@@ -116,7 +116,8 @@ class latkml004Properties(bpy.types.PropertyGroup):
             ("OPENSKETCH", "OpenSketch", "...", 2),
             ("PXP_001", "PxP 001", "...", 3),
             ("PXP_002", "PxP 002", "...", 4),
-            ("PXP_NEURALCONTOURS", "PxP NeuralContours", "...", 5)
+            ("PXP_003", "PxP 003", "...", 5),
+            ("PXP_004", "PxP 004", "...", 6)
         ),
         default="ANIME"
     )
@@ -397,13 +398,15 @@ def getModelPath(url):
 def loadModel():
     latkml004 = bpy.context.scene.latkml004_settings
    
-    returns1 = modelSelector(latkml004.latkml004_ModelStyle1.lower())
-    returns2 = modelSelector(latkml004.latkml004_ModelStyle2.lower())
+    returns1 = modelSelector(latkml004.latkml004_ModelStyle1)
+    returns2 = modelSelector(latkml004.latkml004_ModelStyle2)
 
     return returns1, returns2
 
 def modelSelector(modelName):
+    modelName = modelName.lower()
     latkml004 = bpy.context.scene.latkml004_settings
+
     if (latkml004.latkml004_Backend.lower() == "pytorch"):
         if (modelName == "anime"):
             return Informative_Drawings_PyTorch("checkpoints/anime_style/netG_A_latest.pth")
@@ -412,11 +415,13 @@ def modelSelector(modelName):
         elif (modelName == "opensketch"):
             return Informative_Drawings_PyTorch("checkpoints/opensketch_style/netG_A_latest.pth")
         elif (modelName == "pxp_001"):
-            return Pix2Pix_PyTorch("checkpoints/pix2pix004-002_140_net_G.pth")
+            return Pix2Pix_PyTorch("checkpoints/pix2pix002-001_60_net_G.pth")
         elif (modelName == "pxp_002"):
-            return Pix2Pix_PyTorch("checkpoints/pix2pix003-002_140_net_G.pth")
-        elif (modelName == "pxp_neuralcontours"):
-            return Pix2Pix_PyTorch("checkpoints/neuralcontours_140_net_G.pth")
+            return Pix2Pix_PyTorch("checkpoints/pix2pix002-002_60_net_G.pth")
+        elif (modelName == "pxp_003"):
+            return Pix2Pix_PyTorch("checkpoints/pix2pix002-003_60_net_G.pth")
+        elif (modelName == "pxp_004"):
+            return Pix2Pix_PyTorch("checkpoints/pix2pix002-004_60_net_G.pth")
         else:
             return None
     else:
@@ -430,7 +435,9 @@ def modelSelector(modelName):
             return Pix2Pix_Onnx("onnx/pix2pix004-002_140_net_G_simplified.onnx")
         elif (modelName == "pxp_002"):
             return Pix2Pix_Onnx("onnx/pix2pix003-002_140_net_G_simplified.onnx")
-        elif (modelName == "pxp_neuralcontours"):
+        elif (modelName == "pxp_003"):
+            return Pix2Pix_Onnx("onnx/neuralcontours_140_net_G_simplified.onnx")
+        elif (modelName == "pxp_004"):
             return Pix2Pix_Onnx("onnx/neuralcontours_140_net_G_simplified.onnx")
         else:
             return None
