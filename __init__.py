@@ -90,7 +90,7 @@ class latkml004Properties(bpy.types.PropertyGroup):
     """Properties for latkml004"""
     bl_idname = "GREASE_PENCIL_PT_latkml004Properties"
 
-    latkml004_SourceImage: EnumProperty(
+    SourceImage: EnumProperty(
         name="Source Image",
         items=(
             ("RGB", "RGB", "...", 0),
@@ -99,7 +99,7 @@ class latkml004Properties(bpy.types.PropertyGroup):
         default="RGB"
     )
 
-    latkml004_Backend: EnumProperty(
+    Backend: EnumProperty(
         name="Backend",
         items=(
             ("ONNX", "ONNX", "...", 0),
@@ -108,7 +108,7 @@ class latkml004Properties(bpy.types.PropertyGroup):
         default="ONNX"
     )
 
-    latkml004_ModelStyle1: EnumProperty(
+    ModelStyle1: EnumProperty(
         name="Model1",
         items=(
             ("ANIME", "Anime", "...", 0),
@@ -122,7 +122,7 @@ class latkml004Properties(bpy.types.PropertyGroup):
         default="ANIME"
     )
 
-    latkml004_ModelStyle2: EnumProperty(
+    ModelStyle2: EnumProperty(
         name="Model2",
         items=(
             ("NONE", "None", "...", 0),
@@ -138,31 +138,31 @@ class latkml004Properties(bpy.types.PropertyGroup):
     maxIter = 999
     '''
 
-    latkml004_lineThreshold: FloatProperty(
+    lineThreshold: FloatProperty(
         name="Line Threshold",
         description="...",
         default=32.0 #64.0
     )
 
-    latkml004_csize: IntProperty(
+    csize: IntProperty(
         name="csize",
         description="...",
         default=10
     )
 
-    latkml004_maxIter: IntProperty(
+    maxIter: IntProperty(
         name="iter",
         description="...",
         default=999
     )
 
-    latkml004_distThreshold: FloatProperty(
+    distThreshold: FloatProperty(
         name="Dist Threshold",
         description="...",
         default=0.1 #0.5
     )
 
-    latkml004_thickness: FloatProperty(
+    thickness: FloatProperty(
         name="Thickness %",
         description="...",
         default=10.0
@@ -189,7 +189,7 @@ class latkml004_Button_AllFrames(bpy.types.Operator):
             la.layers[0].frames.append(laFrame)
 
         lb.fromLatkToGp(la, resizeTimeline=False)
-        lb.setThickness(latkml004.latkml004_thickness)
+        lb.setThickness(latkml004.thickness)
         return {'FINISHED'}
 
 
@@ -209,7 +209,7 @@ class latkml004_Button_SingleFrame(bpy.types.Operator):
         la.layers[0].frames.append(laFrame)
         
         lb.fromLatkToGp(la, resizeTimeline=False)
-        lb.setThickness(latkml004.latkml004_thickness)
+        lb.setThickness(latkml004.thickness)
         return {'FINISHED'}
 
 
@@ -236,29 +236,29 @@ class latkml004Properties_Panel(bpy.types.Panel):
         row.operator("latkml004_button.allframes")
 
         row = layout.row()
-        row.prop(latkml004, "latkml004_ModelStyle1")
+        row.prop(latkml004, "ModelStyle1")
 
         row = layout.row()
-        row.prop(latkml004, "latkml004_ModelStyle2")
+        row.prop(latkml004, "ModelStyle2")
 
         row = layout.row()
-        row.prop(latkml004, "latkml004_lineThreshold")
+        row.prop(latkml004, "lineThreshold")
 
         row = layout.row()
-        row.prop(latkml004, "latkml004_distThreshold")
+        row.prop(latkml004, "distThreshold")
 
         row = layout.row()
-        row.prop(latkml004, "latkml004_csize")
-        row.prop(latkml004, "latkml004_maxIter")
+        row.prop(latkml004, "csize")
+        row.prop(latkml004, "maxIter")
 
         row = layout.row()
-        row.prop(latkml004, "latkml004_thickness")
+        row.prop(latkml004, "thickness")
 
         row = layout.row()
-        row.prop(latkml004, "latkml004_SourceImage")
+        row.prop(latkml004, "SourceImage")
 
         row = layout.row()
-        row.prop(latkml004, "latkml004_Backend")
+        row.prop(latkml004, "Backend")
 
 
 classes = (
@@ -398,8 +398,8 @@ def getModelPath(url):
 def loadModel():
     latkml004 = bpy.context.scene.latkml004_settings
    
-    returns1 = modelSelector(latkml004.latkml004_ModelStyle1)
-    returns2 = modelSelector(latkml004.latkml004_ModelStyle2)
+    returns1 = modelSelector(latkml004.ModelStyle1)
+    returns2 = modelSelector(latkml004.ModelStyle2)
 
     return returns1, returns2
 
@@ -407,7 +407,7 @@ def modelSelector(modelName):
     modelName = modelName.lower()
     latkml004 = bpy.context.scene.latkml004_settings
 
-    if (latkml004.latkml004_Backend.lower() == "pytorch"):
+    if (latkml004.Backend.lower() == "pytorch"):
         if (modelName == "anime"):
             return Informative_Drawings_PyTorch("checkpoints/anime_style/netG_A_latest.pth")
         elif (modelName == "contour"):
@@ -449,7 +449,7 @@ def doInference(net1, net2=None):
 
     img_np = None
     img_cv = None
-    if (latkml004.latkml004_SourceImage.lower() == "depth"):
+    if (latkml004.SourceImage.lower() == "depth"):
         img_np = renderToNp(depthPass=True) # inference expects np array
         img_temp = renderToNp()
         img_cv = npToCv(img_temp) # cv converted image used for color pixels later
@@ -469,9 +469,9 @@ def doInference(net1, net2=None):
     im0 = cv2.bitwise_not(im0) # invert
     imWidth = len(im0[0])
     imHeight = len(im0)
-    im = (im0[:,:,0] > latkml004.latkml004_lineThreshold).astype(np.uint8)
+    im = (im0[:,:,0] > latkml004.lineThreshold).astype(np.uint8)
     im = skeletonize(im).astype(np.uint8)
-    polys = from_numpy(im, latkml004.latkml004_csize, latkml004.latkml004_maxIter)
+    polys = from_numpy(im, latkml004.csize, latkml004.maxIter)
 
     laFrame = latk.LatkFrame(frame_number=bpy.context.scene.frame_current)
 
@@ -531,7 +531,7 @@ def doInference(net1, net2=None):
                     originalStrokeColors.append(newStrokeColor)
 
         for i in range(0, len(originalStrokes)):
-            separatedTempStrokes, separatedTempStrokeColors = lb.separatePointsByDistance(originalStrokes[i], originalStrokeColors[i], latkml004.latkml004_distThreshold)
+            separatedTempStrokes, separatedTempStrokeColors = lb.separatePointsByDistance(originalStrokes[i], originalStrokeColors[i], latkml004.distThreshold)
 
             for j in range(0, len(separatedTempStrokes)):
                 separatedStrokes.append(separatedTempStrokes[j])
