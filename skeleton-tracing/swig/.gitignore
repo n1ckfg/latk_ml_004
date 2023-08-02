@@ -1,3 +1,4 @@
 *.so
 *.o
-
+w64devkit.zip
+w64devkit/
