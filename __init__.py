@@ -40,7 +40,7 @@ def findAddonPath(name=None):
             return os.path.dirname(url)
     return None
 
-sys.path.append(os.path.join(findAddonPath(), "skeleton-tracing/swig"))
+sys.path.append(os.path.join(findAddonPath(), os.path.join("skeleton-tracing", "swig")))
 from trace_skeleton import *
 
 import torch
