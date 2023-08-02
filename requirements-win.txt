@@ -13,3 +13,4 @@ latk
 Pillow
 ffmpeg-python
 open3d
+swig
