@@ -218,7 +218,7 @@ class latkml004Properties_Panel(bpy.types.Panel):
     """Creates a Panel in the 3D View context"""
     bl_idname = "GREASE_PENCIL_PT_latkml004PropertiesPanel"
     bl_space_type = 'VIEW_3D'
-    bl_label = "latkml004"
+    bl_label = "latk_ml_004"
     bl_category = "Latk"
     bl_region_type = 'UI'
     #bl_context = "objectmode" # "mesh_edit"
