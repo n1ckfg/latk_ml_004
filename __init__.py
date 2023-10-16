@@ -105,7 +105,7 @@ class latkml004Properties(bpy.types.PropertyGroup):
             ("ONNX", "ONNX", "...", 0),
             ("PYTORCH", "PyTorch", "...", 1)
         ),
-        default="ONNX"
+        default="PYTORCH"
     )
 
     ModelStyle1: EnumProperty(
@@ -634,12 +634,14 @@ def getPyTorchDevice():
     device = None
     if torch.cuda.is_available():
         device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
     else:
         device = torch.device("cpu")
-        return device
+    return device
 
-def createPyTorchNetwork(modelPath, net_G, input_nc=3, output_nc=1, n_blocks=3):
-    device = getPyTorchDevice()
+def createPyTorchNetwork(modelPath, net_G, device, input_nc=3, output_nc=1, n_blocks=3):
+    #device = getPyTorchDevice()
     modelPath = getModelPath(modelPath)
     net_G.to(device)
     net_G.load_state_dict(torch.load(modelPath, map_location=device))
