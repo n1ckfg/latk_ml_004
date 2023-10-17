@@ -24,12 +24,10 @@ import latk
 import latk_blender as lb
 from skimage.morphology import skeletonize
 from mathutils import Vector, Quaternion
-
-import argparse
-import sys
-import os
+from collections import namedtuple
 
 import onnxruntime as ort
+import torch
 
 def findAddonPath(name=None):
     if not name:
@@ -42,9 +40,6 @@ def findAddonPath(name=None):
 
 sys.path.append(os.path.join(findAddonPath(), os.path.join("skeleton-tracing", "swig")))
 from trace_skeleton import *
-
-import torch
-from collections import namedtuple
 
 sys.path.append(os.path.join(findAddonPath(), "informative-drawings"))
 from model import Generator 
